@@ -6,7 +6,6 @@ import { useSession } from '@/lib/sessionStore'
 
 interface Caja {
   id: string
-  estado: 'abierta' | 'cerrada'
   monto_apertura: number
   monto_cierre: number | null
   diferencia: number | null
@@ -20,14 +19,18 @@ interface GastoCaja {
   created_at: string
 }
 
+interface VentaResumen {
+  total: number
+  metodo_pago: string
+}
+
 export default function CajaPage() {
   const { localId } = useSession()
   const [cajaActual, setCajaActual] = useState<Caja | null>(null)
   const [gastos, setGastos] = useState<GastoCaja[]>([])
-  const [ventasHoy, setVentasHoy] = useState<{ total: number; cantidad: number; efectivo: number }>({ total: 0, cantidad: 0, efectivo: 0 })
+  const [ventas, setVentas] = useState<VentaResumen[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Forms
   const [montoApertura, setMontoApertura] = useState('')
   const [montoCierre, setMontoCierre] = useState('')
   const [notasCierre, setNotasCierre] = useState('')
@@ -35,30 +38,42 @@ export default function CajaPage() {
   const [guardando, setGuardando] = useState(false)
   const [tab, setTab] = useState<'resumen' | 'gastos'>('resumen')
 
-  useEffect(() => {
-    if (!localId) return
-    cargarDatos()
-  }, [localId])
+  useEffect(() => { if (localId) cargarDatos() }, [localId])
 
   const cargarDatos = async () => {
     setLoading(true)
-    const hoy = new Date().toISOString().split('T')[0]
 
-    const [{ data: cajaData }, { data: gastosData }, { data: ventasData }] = await Promise.all([
-      supabaseApp.from('caja').select('*').eq('local_id', localId).eq('estado', 'abierta').maybeSingle(),
-      supabaseApp.from('gastos_caja').select('*').eq('local_id', localId).order('created_at', { ascending: false }),
-      supabaseApp.from('ventas').select('total, metodo_pago').eq('local_id', localId).eq('estado', 'completada').gte('created_at', hoy),
-    ])
+    // Buscar caja abierta
+    const { data: cajaData } = await supabaseApp
+      .from('caja')
+      .select('*')
+      .eq('local_id', localId)
+      .eq('estado', 'abierta')
+      .maybeSingle()
 
     setCajaActual(cajaData ?? null)
-    setGastos(gastosData ?? [])
 
-    const ventas = ventasData ?? []
-    setVentasHoy({
-      total: ventas.reduce((acc, v) => acc + (v.total ?? 0), 0),
-      cantidad: ventas.length,
-      efectivo: ventas.filter((v) => v.metodo_pago === 'efectivo').reduce((acc, v) => acc + (v.total ?? 0), 0),
-    })
+    if (cajaData) {
+      // Gastos de esta caja
+      const { data: gastosData } = await supabaseApp
+        .from('gastos_caja')
+        .select('*')
+        .eq('caja_id', cajaData.id)
+        .order('created_at', { ascending: false })
+      setGastos(gastosData ?? [])
+
+      // Ventas desde que se abrió la caja (con o sin caja_id, por fecha)
+      const { data: ventasData } = await supabaseApp
+        .from('ventas')
+        .select('total, metodo_pago')
+        .eq('local_id', localId)
+        .eq('estado', 'completada')
+        .gte('created_at', cajaData.created_at)
+      setVentas(ventasData ?? [])
+    } else {
+      setGastos([])
+      setVentas([])
+    }
 
     setLoading(false)
   }
@@ -79,16 +94,13 @@ export default function CajaPage() {
   const cerrarCaja = async () => {
     if (!cajaActual || !montoCierre) return
     setGuardando(true)
-    const efectivoEsperado = (cajaActual.monto_apertura ?? 0) + ventasHoy.efectivo - gastos.reduce((acc, g) => acc + g.monto, 0)
     const diferencia = Number(montoCierre) - efectivoEsperado
-
     await supabaseApp.from('caja').update({
       estado: 'cerrada',
       monto_cierre: Number(montoCierre),
       diferencia,
       notas_cierre: notasCierre || null,
     }).eq('id', cajaActual.id)
-
     setMontoCierre('')
     setNotasCierre('')
     setGuardando(false)
@@ -109,14 +121,18 @@ export default function CajaPage() {
     cargarDatos()
   }
 
-  const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0)
+  const totalVentas    = ventas.reduce((s, v) => s + Number(v.total), 0)
+  const cantVentas     = ventas.length
+  const totalEfectivo  = ventas.filter((v) => v.metodo_pago === 'efectivo').reduce((s, v) => s + Number(v.total), 0)
+  const totalDigital   = totalVentas - totalEfectivo
+  const totalGastos    = gastos.reduce((s, g) => s + Number(g.monto), 0)
   const efectivoEsperado = cajaActual
-    ? (cajaActual.monto_apertura ?? 0) + ventasHoy.efectivo - totalGastos
+    ? Number(cajaActual.monto_apertura) + totalEfectivo - totalGastos
     : 0
 
   return (
     <RouteGuard permiso="verCaja">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl">
         <h1 className="text-2xl font-bold text-white mb-6">Caja</h1>
 
         {loading ? (
@@ -144,7 +160,7 @@ export default function CajaPage() {
                     disabled={!montoApertura || guardando}
                     className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold rounded-xl px-5 py-3 text-sm transition"
                   >
-                    Abrir caja
+                    {guardando ? 'Abriendo...' : 'Abrir caja'}
                   </button>
                 </div>
               </div>
@@ -153,13 +169,15 @@ export default function CajaPage() {
             {/* Caja abierta */}
             {cajaActual && (
               <>
-                {/* Estado actual */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                {/* Métricas */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
                   {[
-                    { label: 'Ventas hoy', value: `$${ventasHoy.total.toLocaleString()}`, color: 'text-green-400' },
-                    { label: 'Pedidos', value: ventasHoy.cantidad, color: 'text-white' },
-                    { label: 'Gastos', value: `$${totalGastos.toLocaleString()}`, color: 'text-red-400' },
-                    { label: 'Efectivo esperado', value: `$${efectivoEsperado.toLocaleString()}`, color: 'text-violet-400' },
+                    { label: 'Total ventas',       value: `$${totalVentas.toLocaleString()}`,      color: 'text-green-400' },
+                    { label: 'Ventas efectivo',    value: `$${totalEfectivo.toLocaleString()}`,    color: 'text-green-300' },
+                    { label: 'Ventas digital',     value: `$${totalDigital.toLocaleString()}`,     color: 'text-blue-400' },
+                    { label: 'Cantidad ventas',    value: String(cantVentas),                      color: 'text-white' },
+                    { label: 'Gastos',             value: `$${totalGastos.toLocaleString()}`,      color: 'text-red-400' },
+                    { label: 'Efectivo esperado',  value: `$${efectivoEsperado.toLocaleString()}`, color: 'text-violet-400' },
                   ].map((m) => (
                     <div key={m.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                       <p className="text-xs text-gray-500 mb-1">{m.label}</p>
@@ -177,19 +195,26 @@ export default function CajaPage() {
                       className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition
                         ${tab === t ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
                     >
-                      {t}
+                      {t === 'resumen' ? 'Cierre' : 'Gastos'}
+                      {t === 'gastos' && gastos.length > 0 && (
+                        <span className="ml-2 bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">{gastos.length}</span>
+                      )}
                     </button>
                   ))}
                 </div>
 
-                {/* Tab resumen — cierre de caja */}
+                {/* Cierre */}
                 {tab === 'resumen' && (
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-                    <h2 className="font-bold text-white">Cierre de caja</h2>
+                    <div className="space-y-2 text-sm text-gray-400 pb-4 border-b border-gray-800">
+                      <div className="flex justify-between"><span>Apertura</span><span className="text-white">${Number(cajaActual.monto_apertura).toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span>+ Efectivo vendido</span><span className="text-green-400">+${totalEfectivo.toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span>- Gastos</span><span className="text-red-400">-${totalGastos.toLocaleString()}</span></div>
+                      <div className="flex justify-between font-bold text-white pt-1"><span>Efectivo esperado</span><span className="text-violet-400">${efectivoEsperado.toLocaleString()}</span></div>
+                    </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                        Efectivo contado en caja ($)
-                      </label>
+                      <label className="block text-sm font-medium text-gray-300 mb-1.5">Efectivo contado en caja ($)</label>
                       <input
                         type="number"
                         inputMode="decimal"
@@ -202,11 +227,9 @@ export default function CajaPage() {
 
                     {montoCierre && (
                       <div className={`rounded-xl p-3 text-sm font-medium ${
-                        Number(montoCierre) - efectivoEsperado === 0
-                          ? 'bg-green-950 text-green-400'
-                          : Number(montoCierre) - efectivoEsperado > 0
-                            ? 'bg-blue-950 text-blue-400'
-                            : 'bg-red-950 text-red-400'
+                        Number(montoCierre) - efectivoEsperado === 0 ? 'bg-green-950 text-green-400'
+                        : Number(montoCierre) - efectivoEsperado > 0 ? 'bg-blue-950 text-blue-400'
+                        : 'bg-red-950 text-red-400'
                       }`}>
                         Diferencia: ${(Number(montoCierre) - efectivoEsperado).toLocaleString()}
                         {Number(montoCierre) - efectivoEsperado === 0 && ' ✓ Caja cuadrada'}
@@ -215,16 +238,13 @@ export default function CajaPage() {
                       </div>
                     )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1.5">Notas (opcional)</label>
-                      <textarea
-                        value={notasCierre}
-                        onChange={(e) => setNotasCierre(e.target.value)}
-                        placeholder="Observaciones del cierre..."
-                        rows={2}
-                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500 resize-none"
-                      />
-                    </div>
+                    <textarea
+                      value={notasCierre}
+                      onChange={(e) => setNotasCierre(e.target.value)}
+                      placeholder="Notas del cierre (opcional)"
+                      rows={2}
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500 resize-none"
+                    />
 
                     <button
                       onClick={cerrarCaja}
@@ -236,7 +256,7 @@ export default function CajaPage() {
                   </div>
                 )}
 
-                {/* Tab gastos */}
+                {/* Gastos */}
                 {tab === 'gastos' && (
                   <div className="space-y-4">
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
@@ -245,7 +265,7 @@ export default function CajaPage() {
                         <input
                           value={formGasto.descripcion}
                           onChange={(e) => setFormGasto((f) => ({ ...f, descripcion: e.target.value }))}
-                          placeholder="Descripción del gasto"
+                          placeholder="Descripción"
                           className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
                         />
                         <input
@@ -253,8 +273,8 @@ export default function CajaPage() {
                           inputMode="decimal"
                           value={formGasto.monto}
                           onChange={(e) => setFormGasto((f) => ({ ...f, monto: e.target.value }))}
-                          placeholder="Monto"
-                          className="w-28 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
+                          placeholder="$"
+                          className="w-24 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
                         />
                         <button
                           onClick={agregarGasto}
@@ -268,23 +288,19 @@ export default function CajaPage() {
 
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
                       {gastos.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-10">No hay gastos registrados</p>
+                        <p className="text-gray-500 text-sm text-center py-10">Sin gastos registrados</p>
                       ) : (
                         <table className="w-full">
                           <tbody className="divide-y divide-gray-800">
                             {gastos.map((g) => (
                               <tr key={g.id}>
                                 <td className="px-5 py-3 text-sm text-white">{g.descripcion}</td>
-                                <td className="px-5 py-3 text-sm font-semibold text-red-400 text-right">
-                                  -${g.monto.toLocaleString()}
-                                </td>
+                                <td className="px-5 py-3 text-sm font-semibold text-red-400 text-right">-${Number(g.monto).toLocaleString()}</td>
                               </tr>
                             ))}
                             <tr className="bg-gray-800/50">
-                              <td className="px-5 py-3 text-sm font-bold text-white">Total gastos</td>
-                              <td className="px-5 py-3 text-sm font-bold text-red-400 text-right">
-                                -${totalGastos.toLocaleString()}
-                              </td>
+                              <td className="px-5 py-3 text-sm font-bold text-white">Total</td>
+                              <td className="px-5 py-3 text-sm font-bold text-red-400 text-right">-${totalGastos.toLocaleString()}</td>
                             </tr>
                           </tbody>
                         </table>
