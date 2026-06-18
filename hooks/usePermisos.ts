@@ -3,6 +3,7 @@ import { useSession } from '@/lib/sessionStore'
 import { getPermisos } from '@/lib/permisos'
 
 export function usePermisos() {
-  const { permisos, rolSistema } = useSession()
-  return permisos ?? getPermisos(rolSistema ?? 'owner')
+  const { rolSistema } = useSession()
+  // Siempre recalcular desde rolSistema para reflejar cambios en permisos.ts
+  return getPermisos(rolSistema ?? 'owner')
 }
