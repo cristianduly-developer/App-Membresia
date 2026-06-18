@@ -5,24 +5,26 @@ import { useSession } from '@/lib/sessionStore'
 import { usePermisos } from '@/hooks/usePermisos'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { DemoBanner } from './DemoBanner'
+import { usePedidosQR } from '@/hooks/usePedidosQR'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', emoji: '📊', permiso: 'verDashboard' },
-  { href: '/ventas', label: 'Ventas', emoji: '💰', permiso: 'verVentas' },
-  { href: '/mesas', label: 'Mesas', emoji: '🪑', permiso: 'verMesas' },
-  { href: '/pedidos', label: 'Pedidos', emoji: '📋', permiso: 'verComandas' },
-  { href: '/cocina', label: 'Cocina', emoji: '👨‍🍳', permiso: 'verCocina' },
-  { href: '/productos', label: 'Productos', emoji: '🍔', permiso: 'verProductos' },
-  { href: '/clientes', label: 'Clientes', emoji: '👥', permiso: 'verClientes' },
-  { href: '/caja', label: 'Caja', emoji: '🏧', permiso: 'verCaja' },
-  { href: '/reportes', label: 'Reportes', emoji: '📈', permiso: 'verReportes' },
-  { href: '/configuracion', label: 'Configuración', emoji: '⚙️', permiso: 'verConfig' },
+  { href: '/dashboard',     label: 'Dashboard',    emoji: '📊', permiso: 'verDashboard' },
+  { href: '/ventas',        label: 'Ventas',       emoji: '💰', permiso: 'verVentas' },
+  { href: '/mesas',         label: 'Mesas',        emoji: '🪑', permiso: 'verMesas' },
+  { href: '/pedidos',       label: 'Pedidos QR',   emoji: '📋', permiso: 'verComandas' },
+  { href: '/cocina',        label: 'Cocina',       emoji: '👨‍🍳', permiso: 'verCocina' },
+  { href: '/productos',     label: 'Productos',    emoji: '🍔', permiso: 'verProductos' },
+  { href: '/clientes',      label: 'Clientes',     emoji: '👥', permiso: 'verClientes' },
+  { href: '/caja',          label: 'Caja',         emoji: '🏧', permiso: 'verCaja' },
+  { href: '/reportes',      label: 'Reportes',     emoji: '📈', permiso: 'verReportes' },
+  { href: '/configuracion', label: 'Configuración',emoji: '⚙️', permiso: 'verConfig' },
 ] as const
 
 export function Sidebar() {
   const pathname = usePathname()
   const { nombreNegocio, rolSistema } = useSession()
   const permisos = usePermisos()
+  const { total: pedidosPendientes } = usePedidosQR()
 
   const handleLogout = async () => {
     await supabaseApp.auth.signOut()
@@ -51,6 +53,8 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
         {items.map((item) => {
           const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          const badge = item.href === '/pedidos' && pedidosPendientes > 0 ? pedidosPendientes : null
+
           return (
             <Link
               key={item.href}
@@ -61,7 +65,12 @@ export function Sidebar() {
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
             >
               <span className="text-base">{item.emoji}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {badge && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
+                  {badge}
+                </span>
+              )}
             </Link>
           )
         })}
