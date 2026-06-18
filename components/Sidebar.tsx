@@ -16,8 +16,9 @@ const NAV_ITEMS = [
   { href: '/productos',     label: 'Productos',    emoji: '🍔', permiso: 'verProductos' },
   { href: '/clientes',      label: 'Clientes',     emoji: '👥', permiso: 'verClientes' },
   { href: '/caja',          label: 'Caja',         emoji: '🏧', permiso: 'verCaja' },
-  { href: '/reportes',      label: 'Reportes',     emoji: '📈', permiso: 'verReportes' },
-  { href: '/configuracion', label: 'Configuración',emoji: '⚙️', permiso: 'verConfig' },
+  { href: '/reportes',       label: 'Reportes',      emoji: '📈', permiso: 'verReportes' },
+  { href: '/colaboradores',  label: 'Colaboradores', emoji: '👥', permiso: 'verColaboradores' },
+  { href: '/configuracion',  label: 'Configuración', emoji: '⚙️', permiso: 'verConfig' },
 ] as const
 
 export function Sidebar() {
