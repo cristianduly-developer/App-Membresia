@@ -17,7 +17,7 @@ export default async function MenuPublicoPage({ params }: Params) {
 
   const [{ data: config }, { data: categorias }, { data: productos }] = await Promise.all([
     supabase.from('config_local').select('nombre_negocio, tipo_negocio, telefono').eq('local_id', localId).single(),
-    supabase.from('categorias').select('*').eq('local_id', localId).eq('activa', true).order('nombre'),
+    supabase.from('categorias').select('*').eq('local_id', localId).eq('activo', true).order('nombre'),
     supabase.from('productos').select('id, nombre, descripcion, precio, categoria_id, agotado').eq('local_id', localId).eq('activo', true).order('nombre'),
   ])
 

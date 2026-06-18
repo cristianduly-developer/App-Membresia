@@ -30,7 +30,7 @@ export default function NuevaComandaPage() {
     if (!mesaId || !localId) return
     Promise.all([
       supabaseApp.from('mesas').select('nombre').eq('id', mesaId).single(),
-      supabaseApp.from('categorias').select('*').eq('local_id', localId).eq('activa', true).order('nombre'),
+      supabaseApp.from('categorias').select('*').eq('local_id', localId).eq('activo', true).order('nombre'),
       supabaseApp.from('productos').select('*').eq('local_id', localId).eq('activo', true).order('nombre'),
       supabaseApp.from('comandas').select('id, tanda_actual').eq('mesa_id', mesaId).eq('estado', 'abierta').maybeSingle(),
     ]).then(([{ data: m }, { data: cats }, { data: prods }, { data: cmd }]) => {

@@ -12,7 +12,7 @@ CREATE POLICY "config_local_public_read" ON config_local
 -- Política de lectura pública para categorias
 CREATE POLICY "categorias_public_read" ON categorias
   FOR SELECT
-  USING (activa = true);
+  USING (activo = true);
 
 -- Política de lectura pública para productos
 CREATE POLICY "productos_public_read" ON productos
