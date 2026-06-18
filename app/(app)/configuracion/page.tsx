@@ -1,0 +1,220 @@
+'use client'
+import { useEffect, useRef, useState } from 'react'
+import { RouteGuard } from '@/components/RouteGuard'
+import { supabaseApp } from '@/lib/supabaseApp'
+import { useSession } from '@/lib/sessionStore'
+
+interface Config {
+  nombre_negocio: string
+  tipo_negocio: string
+  telefono: string
+  usa_mesas: boolean
+  usa_delivery: boolean
+  usa_cocina: boolean
+  usa_qr: boolean
+}
+
+const TIPO_LABELS: Record<string, string> = {
+  food_truck: 'Food Truck',
+  rotiseria:  'Rotisería',
+  pizzeria:   'Pizzería',
+  restaurante:'Restaurante',
+  cafeteria:  'Cafetería',
+  otro:       'Otro',
+}
+
+export default function ConfiguracionPage() {
+  const { localId } = useSession()
+  const [config, setConfig] = useState<Config | null>(null)
+  const [form, setForm] = useState<Config | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const [guardado, setGuardado] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const menuUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/menu/${localId}`
+    : ''
+
+  useEffect(() => {
+    if (!localId) return
+    supabaseApp
+      .from('config_local')
+      .select('*')
+      .eq('local_id', localId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const c: Config = {
+            nombre_negocio: data.nombre_negocio ?? '',
+            tipo_negocio:   data.tipo_negocio ?? '',
+            telefono:       data.telefono ?? '',
+            usa_mesas:      data.usa_mesas ?? false,
+            usa_delivery:   data.usa_delivery ?? false,
+            usa_cocina:     data.usa_cocina ?? false,
+            usa_qr:         data.usa_qr ?? false,
+          }
+          setConfig(c)
+          setForm(c)
+        }
+      })
+  }, [localId])
+
+  const guardar = async () => {
+    if (!form || !localId) return
+    setGuardando(true)
+    await supabaseApp.from('config_local').update({
+      nombre_negocio: form.nombre_negocio,
+      tipo_negocio:   form.tipo_negocio,
+      telefono:       form.telefono,
+      usa_mesas:      form.usa_mesas,
+      usa_delivery:   form.usa_delivery,
+      usa_cocina:     form.usa_cocina,
+      usa_qr:         form.usa_qr,
+    }).eq('local_id', localId)
+    setConfig(form)
+    setGuardando(false)
+    setGuardado(true)
+    setTimeout(() => setGuardado(false), 2000)
+  }
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(menuUrl)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  const toggle = (key: keyof Config) => {
+    setForm((f) => f ? { ...f, [key]: !f[key] } : f)
+  }
+
+  if (!form) {
+    return (
+      <RouteGuard permiso="verConfig">
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </RouteGuard>
+    )
+  }
+
+  const hayCambios = JSON.stringify(form) !== JSON.stringify(config)
+
+  return (
+    <RouteGuard permiso="verConfig">
+      <div className="max-w-xl space-y-6">
+        <h1 className="text-2xl font-bold text-white">Configuración</h1>
+
+        {/* Datos del negocio */}
+        <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+          <h2 className="font-semibold text-white">Datos del negocio</h2>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Nombre del negocio</label>
+            <input
+              value={form.nombre_negocio}
+              onChange={(e) => setForm((f) => f ? { ...f, nombre_negocio: e.target.value } : f)}
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Tipo de negocio</label>
+            <select
+              value={form.tipo_negocio}
+              onChange={(e) => setForm((f) => f ? { ...f, tipo_negocio: e.target.value } : f)}
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500"
+            >
+              {Object.entries(TIPO_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Teléfono (opcional)</label>
+            <input
+              type="tel"
+              value={form.telefono}
+              onChange={(e) => setForm((f) => f ? { ...f, telefono: e.target.value } : f)}
+              placeholder="Ej: 2235001234"
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
+            />
+          </div>
+        </section>
+
+        {/* Funciones activas */}
+        <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
+          <h2 className="font-semibold text-white mb-1">Funciones activas</h2>
+          {([
+            { key: 'usa_mesas',    emoji: '🪑', label: 'Mesas / comedor',   desc: 'Gestión visual de salón y comandas' },
+            { key: 'usa_delivery', emoji: '🛵', label: 'Delivery',           desc: 'Pedidos para envío a domicilio' },
+            { key: 'usa_cocina',   emoji: '👨‍🍳', label: 'Monitor de cocina', desc: 'Pantalla en cocina con pedidos en tiempo real' },
+            { key: 'usa_qr',       emoji: '📱', label: 'Menú QR',            desc: 'Los clientes ven la carta desde su celu' },
+          ] as const).map(({ key, emoji, label, desc }) => (
+            <button
+              key={key}
+              onClick={() => toggle(key as keyof Config)}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all
+                ${form[key as keyof Config]
+                  ? 'bg-violet-950 border-violet-600'
+                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'}`}
+            >
+              <span className="text-2xl">{emoji}</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">{label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+                ${form[key as keyof Config] ? 'bg-violet-500 border-violet-500' : 'border-gray-600'}`}>
+                {form[key as keyof Config] && <span className="text-white text-xs">✓</span>}
+              </div>
+            </button>
+          ))}
+        </section>
+
+        {/* Link menú QR */}
+        {form.usa_qr && (
+          <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
+            <h2 className="font-semibold text-white">Menú QR público</h2>
+            <p className="text-xs text-gray-400">
+              Compartí este link o generá un QR para que tus clientes vean la carta desde el celu.
+            </p>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                readOnly
+                value={menuUrl}
+                className="flex-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-xl px-4 py-3 text-xs focus:outline-none"
+                onClick={() => inputRef.current?.select()}
+              />
+              <button
+                onClick={copiarLink}
+                className="px-4 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition flex-shrink-0"
+              >
+                {copiado ? '✓ Copiado' : 'Copiar'}
+              </button>
+            </div>
+            <a
+              href={menuUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition"
+            >
+              Ver menú ↗
+            </a>
+          </section>
+        )}
+
+        {/* Guardar */}
+        <button
+          onClick={guardar}
+          disabled={!hayCambios || guardando}
+          className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 transition"
+        >
+          {guardando ? 'Guardando...' : guardado ? '✓ Guardado' : 'Guardar cambios'}
+        </button>
+      </div>
+    </RouteGuard>
+  )
+}
