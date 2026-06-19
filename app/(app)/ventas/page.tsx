@@ -147,8 +147,7 @@ export default function VentasPage() {
       )
     }
 
-    Sentry.metrics.increment('ventas.cerradas', 1, { tags: { metodo } })
-    Sentry.metrics.distribution('ventas.monto', total)
+    Sentry.addBreadcrumb({ category: 'ventas', message: 'venta cerrada', data: { metodo, total }, level: 'info' })
 
     setCarrito([])
     setCobrando(false)
