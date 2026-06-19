@@ -98,7 +98,7 @@ export default function DeliveryPage() {
   }, [localId, cargar])
 
   const avanzar = async (pedido: PedidoDelivery) => {
-    const sig = SIGUIENTE[pedido.estado]
+    const sig = SIGUIENTE[pedido.estado as EstadoKey]
     if (!sig) return
     setAvanzando((s) => new Set(s).add(pedido.id))
     await supabaseApp.from('pedidos_delivery').update({ estado: sig }).eq('id', pedido.id)
