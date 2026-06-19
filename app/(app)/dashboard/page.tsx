@@ -22,6 +22,20 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!localId) return
     cargarStats()
+
+    const onFocus = () => cargarStats()
+    window.addEventListener('focus', onFocus)
+
+    const channel = supabaseApp
+      .channel('dashboard-caja')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'caja' }, cargarStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, cargarStats)
+      .subscribe()
+
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      supabaseApp.removeChannel(channel)
+    }
   }, [localId])
 
   const cargarStats = async () => {
