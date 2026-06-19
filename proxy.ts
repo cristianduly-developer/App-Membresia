@@ -13,7 +13,7 @@ function applySecurityHeaders(res: NextResponse) {
   return res
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next()
   applySecurityHeaders(response)
 
