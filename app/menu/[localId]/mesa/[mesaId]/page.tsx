@@ -92,22 +92,20 @@ export default function MenuMesaPage({ params }: { params: { localId: string; me
       observacion: i.observacion || null,
     }))
 
-    const { error: err } = await supabaseAnon.from('pedidos_qr').insert({
-      local_id: localId,
-      mesa_id: mesaId,
-      mesa_nombre: mesaNombre,
-      items,
-      total,
+    const res = await fetch('/api/public/qr-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localId, mesaId, mesaNombre, items, total }),
     })
 
-    if (err) {
-      setError('Error al enviar el pedido. Intentá de nuevo.')
-      setEnviando(false)
+    setEnviando(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? 'Error al enviar el pedido. Intentá de nuevo.')
       return
     }
 
     setPaso('confirmado')
-    setEnviando(false)
   }
 
   if (loading) {

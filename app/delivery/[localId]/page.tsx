@@ -83,32 +83,29 @@ export default function DeliveryPublicoPage() {
   const enviarPedido = async () => {
     if (!cliente.nombre.trim() || !cliente.tel.trim() || (!retiraEnLocal && !cliente.dir.trim())) return
     setEnviando(true)
-    const { data: pedido } = await supabaseApp.from('pedidos_delivery').insert({
-      local_id: localId,
-      cliente_nombre: cliente.nombre.trim(),
-      cliente_tel: cliente.tel.trim(),
-      cliente_dir: retiraEnLocal ? 'Retira en el local' : cliente.dir.trim(),
-      observaciones: cliente.obs.trim() || null,
-      total,
-      metodo_pago: metodoPago,
-      estado: 'recibido',
-      origen: 'link',
-    }).select().single()
-
-    if (pedido) {
-      await supabaseApp.from('items_pedido_delivery').insert(
-        carrito.map((i) => ({
-          pedido_delivery_id: pedido.id,
-          producto_id: i.producto_id,
-          nombre: i.nombre,
-          precio: i.precio,
-          cantidad: i.cantidad,
-          subtotal: i.subtotal,
-          observacion: i.observacion || null,
-        }))
-      )
-    }
+    const res = await fetch('/api/public/delivery-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        localId,
+        cliente: {
+          nombre: cliente.nombre.trim(),
+          tel: cliente.tel.trim(),
+          dir: cliente.dir.trim(),
+          obs: cliente.obs.trim() || null,
+        },
+        carrito,
+        total,
+        metodoPago,
+        retiraEnLocal,
+      }),
+    })
     setEnviando(false)
+    if (!res.ok) {
+      const { error } = await res.json()
+      alert(error ?? 'Error al enviar el pedido. Intentá de nuevo.')
+      return
+    }
     setPaso('confirmado')
   }
 
