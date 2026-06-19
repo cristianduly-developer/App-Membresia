@@ -15,7 +15,7 @@ interface Stats {
 }
 
 export default function DashboardPage() {
-  const { localId, nombreNegocio } = useSession()
+  const { localId, nombreNegocio, usaMesas, usaCocina, usaDelivery, usaQr } = useSession()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -107,8 +107,8 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <MetricCard label="Ventas hoy"      value={`$${stats.ventasHoy.toLocaleString()}`}       emoji="💰" color="violet" />
               <MetricCard label="Ticket promedio" value={`$${stats.ticketPromedio.toLocaleString()}`}  emoji="🧾" color="blue" />
-              <MetricCard label="Mesas ocupadas"  value={`${stats.mesasOcupadas} / ${stats.totalMesas}`} emoji="🪑" color="green" />
-              <MetricCard label="Pedidos en cocina" value={String(stats.pedidosPendientes)} emoji="👨‍🍳" color={stats.pedidosPendientes > 5 ? 'red' : 'gray'} />
+              {usaMesas && <MetricCard label="Mesas ocupadas"    value={`${stats.mesasOcupadas} / ${stats.totalMesas}`} emoji="🪑" color="green" />}
+              {usaCocina && <MetricCard label="Pedidos en cocina" value={String(stats.pedidosPendientes)} emoji="👨‍🍳" color={stats.pedidosPendientes > 5 ? 'red' : 'gray'} />}
             </div>
 
             {/* Alertas */}
@@ -125,7 +125,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {stats.pedidosPendientes > 0 && (
+            {usaCocina && stats.pedidosPendientes > 0 && (
               <div className="bg-blue-950/40 border border-blue-800 rounded-2xl p-4 mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">⏳</span>
@@ -145,13 +145,15 @@ export default function DashboardPage() {
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Accesos rápidos</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  { href: '/ventas',    emoji: '💰', label: 'Nueva venta' },
-                  { href: '/mesas',     emoji: '🪑', label: 'Ver mesas' },
-                  { href: '/cocina',    emoji: '👨‍🍳', label: 'Cocina' },
-                  { href: '/caja',      emoji: '🏧', label: 'Caja' },
-                  { href: '/productos', emoji: '🍔', label: 'Productos' },
-                  { href: '/clientes',  emoji: '👥', label: 'Clientes' },
-                ].map((a) => (
+                  { href: '/ventas',    emoji: '💰', label: 'Nueva venta',  show: true },
+                  { href: '/mesas',     emoji: '🪑', label: 'Ver mesas',    show: usaMesas },
+                  { href: '/cocina',    emoji: '👨‍🍳', label: 'Cocina',       show: usaCocina },
+                  { href: '/delivery',  emoji: '🛵', label: 'Delivery',     show: usaDelivery },
+                  { href: '/pedidos',   emoji: '📋', label: 'Pedidos QR',   show: usaQr },
+                  { href: '/caja',      emoji: '🏧', label: 'Caja',         show: true },
+                  { href: '/productos', emoji: '🍔', label: 'Productos',    show: true },
+                  { href: '/clientes',  emoji: '👥', label: 'Clientes',     show: true },
+                ].filter((a) => a.show).map((a) => (
                   <Link
                     key={a.href}
                     href={a.href}
