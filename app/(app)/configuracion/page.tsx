@@ -26,7 +26,7 @@ const TIPO_LABELS: Record<string, string> = {
 }
 
 export default function ConfiguracionPage() {
-  const { localId } = useSession()
+  const { localId, setSession } = useSession()
   const [config, setConfig] = useState<Config | null>(null)
   const [form, setForm] = useState<Config | null>(null)
   const [guardando, setGuardando] = useState(false)
@@ -81,6 +81,13 @@ export default function ConfiguracionPage() {
       logo_url:        form.logo_url,
     }).eq('local_id', localId)
     setConfig(form)
+    setSession({
+      nombreNegocio: form.nombre_negocio,
+      usaMesas: form.usa_mesas,
+      usaDelivery: form.usa_delivery,
+      usaCocina: form.usa_cocina,
+      usaQr: form.usa_qr,
+    })
     setGuardando(false)
     setGuardado(true)
     setTimeout(() => setGuardado(false), 2000)

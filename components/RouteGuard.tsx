@@ -11,14 +11,15 @@ interface Props {
 }
 
 export function RouteGuard({ permiso, redirectTo = '/', children }: Props) {
-  const { _hydrated, localId, permisos } = useSession()
+  const { _hydrated, localId, permisos, onboardingCompleto } = useSession()
   const router = useRouter()
 
   useEffect(() => {
     if (!_hydrated) return
     if (!localId) { router.push('/login'); return }
+    if (!onboardingCompleto) { router.push('/onboarding'); return }
     if (permisos && !permisos[permiso]) router.push(redirectTo)
-  }, [_hydrated, localId, permisos, permiso, redirectTo])
+  }, [_hydrated, localId, permisos, permiso, redirectTo, onboardingCompleto])
 
   if (!_hydrated) {
     return (
@@ -29,6 +30,7 @@ export function RouteGuard({ permiso, redirectTo = '/', children }: Props) {
   }
 
   if (!localId) return null
+  if (!onboardingCompleto) return null
   if (permisos && !permisos[permiso]) return null
 
   return <>{children}</>
