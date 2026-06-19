@@ -87,14 +87,16 @@ export default function MesasPage() {
     setSectores(sects ?? [])
     setMesas(mesasConComanda)
 
-    // Init posiciones desde DB
-    const pos: Record<string, { x: number; y: number }> = {}
-    for (const m of mesasData ?? []) {
-      if (m.pos_x != null && m.pos_y != null) {
-        pos[m.id] = { x: m.pos_x, y: m.pos_y }
+    // Init posiciones desde DB solo si no estamos editando
+    if (!editandoLayout) {
+      const pos: Record<string, { x: number; y: number }> = {}
+      for (const m of mesasData ?? []) {
+        if (m.pos_x != null && m.pos_y != null) {
+          pos[m.id] = { x: m.pos_x, y: m.pos_y }
+        }
       }
+      setPosiciones(pos)
     }
-    setPosiciones(pos)
 
     if ((sects ?? []).length > 0 && !sectorLayout) {
       setSectorLayout((sects ?? [])[0]?.id ?? '')
@@ -277,10 +279,10 @@ export default function MesasPage() {
                   const cfg = ESTADO_CONFIG[mesa.estado]
                   const tienePos = pos != null
 
-                  if (!tienePos && !editandoLayout) return null
+                  if (!tienePos) return null
 
-                  const x = pos?.x ?? 0
-                  const y = pos?.y ?? 0
+                  const x = pos.x
+                  const y = pos.y
 
                   return (
                     <div
