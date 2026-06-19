@@ -5,6 +5,9 @@ import { NextRequest, NextResponse } from 'next/server'
 const PUBLIC_PREFIXES = ['/menu/', '/delivery/', '/api/public/']
 const PUBLIC_EXACT = new Set(['/', '/login'])
 
+// Rutas que requieren sesión pero NO requieren onboarding completo
+const ONBOARDING_ALLOWED = new Set(['/onboarding', '/login'])
+
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
@@ -45,6 +48,15 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // Si no tiene local_id en app_metadata → onboarding incompleto
+  // Esto viene del JWT sin necesidad de query a DB
+  const localId = user.app_metadata?.local_id
+  if (!localId && !ONBOARDING_ALLOWED.has(pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/onboarding'
     return NextResponse.redirect(url)
   }
 
