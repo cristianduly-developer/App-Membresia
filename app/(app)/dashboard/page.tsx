@@ -28,8 +28,8 @@ export default function DashboardPage() {
 
     const channel = supabaseApp
       .channel('dashboard-caja')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'caja' }, cargarStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, cargarStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'caja', filter: `local_id=eq.${localId}` }, cargarStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas', filter: `local_id=eq.${localId}` }, cargarStats)
       .subscribe()
 
     return () => {

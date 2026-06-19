@@ -79,32 +79,43 @@ export default function CajaPage() {
   }
 
   const abrirCaja = async () => {
-    if (!montoApertura) return
+    if (!montoApertura || guardando) return
     setGuardando(true)
-    await supabaseApp.from('caja').insert({
-      local_id: localId,
-      estado: 'abierta',
-      monto_apertura: Number(montoApertura),
-    })
-    setMontoApertura('')
-    setGuardando(false)
-    cargarDatos()
+    try {
+      const { error } = await supabaseApp.from('caja').insert({
+        local_id: localId,
+        estado: 'abierta',
+        monto_apertura: Number(montoApertura),
+      })
+      if (error) {
+        alert(error.code === '23505' ? 'Ya hay una caja abierta' : 'Error al abrir la caja')
+        return
+      }
+      setMontoApertura('')
+      cargarDatos()
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const cerrarCaja = async () => {
-    if (!cajaActual || !montoCierre) return
+    if (!cajaActual || !montoCierre || guardando) return
     setGuardando(true)
-    const diferencia = Number(montoCierre) - efectivoEsperado
-    await supabaseApp.from('caja').update({
-      estado: 'cerrada',
-      monto_cierre: Number(montoCierre),
-      diferencia,
-      notas_cierre: notasCierre || null,
-    }).eq('id', cajaActual.id)
-    setMontoCierre('')
-    setNotasCierre('')
-    setGuardando(false)
-    cargarDatos()
+    try {
+      const diferencia = Number(montoCierre) - efectivoEsperado
+      const { error } = await supabaseApp.from('caja').update({
+        estado: 'cerrada',
+        monto_cierre: Number(montoCierre),
+        diferencia,
+        notas_cierre: notasCierre || null,
+      }).eq('id', cajaActual.id).eq('estado', 'abierta')
+      if (error) { alert('Error al cerrar la caja'); return }
+      setMontoCierre('')
+      setNotasCierre('')
+      cargarDatos()
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const agregarGasto = async () => {

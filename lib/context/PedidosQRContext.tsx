@@ -47,7 +47,7 @@ export function PedidosQRProvider({ children }: { children: ReactNode }) {
 
     const channel = supabaseApp
       .channel('pedidos-qr-global')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_qr' },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_qr', filter: `local_id=eq.${localId}` },
         (payload) => {
           const nuevo = payload.new as PedidoQR
           setPendientes((prev) => [...prev, nuevo])
@@ -67,7 +67,7 @@ export function PedidosQRProvider({ children }: { children: ReactNode }) {
           } catch { /* browser bloqueó audio */ }
         }
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_qr' },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_qr', filter: `local_id=eq.${localId}` },
         () => cargar()
       )
       .subscribe()

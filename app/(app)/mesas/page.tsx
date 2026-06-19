@@ -65,8 +65,8 @@ export default function MesasPage() {
 
     const channel = supabaseApp
       .channel('mesas-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, cargarDatos)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comandas' }, cargarDatos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: `local_id=eq.${localId}` }, cargarDatos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comandas', filter: `local_id=eq.${localId}` }, cargarDatos)
       .subscribe()
 
     return () => { supabaseApp.removeChannel(channel) }

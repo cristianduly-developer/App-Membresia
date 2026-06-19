@@ -103,6 +103,8 @@ export default function ConfiguracionPage() {
     const file = e.target.files?.[0]
     if (!file || !localId) return
     if (file.size > 2 * 1024 * 1024) { alert('El logo no puede superar 2 MB'); return }
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!TIPOS_PERMITIDOS.includes(file.type)) { alert('Solo se permiten imágenes JPG, PNG, WebP o GIF'); return }
 
     setSubiendoLogo(true)
     const ext = file.name.split('.').pop()

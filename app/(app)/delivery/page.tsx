@@ -92,7 +92,7 @@ export default function DeliveryPage() {
     cargar()
     const ch = supabaseApp
       .channel('delivery-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_delivery' }, cargar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_delivery', filter: `local_id=eq.${localId}` }, cargar)
       .subscribe()
     return () => { supabaseApp.removeChannel(ch) }
   }, [localId, cargar])

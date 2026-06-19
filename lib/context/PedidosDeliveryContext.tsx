@@ -45,7 +45,7 @@ export function PedidosDeliveryProvider({ children }: { children: ReactNode }) {
 
     const channel = supabaseApp
       .channel('pedidos-delivery-global')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_delivery' },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_delivery', filter: `local_id=eq.${localId}` },
         (payload) => {
           const nuevo = payload.new as PedidoDeliveryNotif
           // Solo notificar si viene del link público (manual ya lo ve quien lo cargó)
@@ -69,7 +69,7 @@ export function PedidosDeliveryProvider({ children }: { children: ReactNode }) {
           cargarTotal()
         }
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_delivery' },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_delivery', filter: `local_id=eq.${localId}` },
         () => cargarTotal()
       )
       .subscribe()

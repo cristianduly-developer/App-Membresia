@@ -56,7 +56,7 @@ export default function PedidosQRPage() {
 
     const channel = supabaseApp
       .channel('pedidos-qr-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_qr' }, cargar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_qr', filter: `local_id=eq.${localId}` }, cargar)
       .subscribe()
 
     return () => { supabaseApp.removeChannel(channel) }

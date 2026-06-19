@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { createClient } from '@supabase/supabase-js'
+import { verificarAcceso } from '@/lib/supabaseCentral'
 
 export async function POST(req: NextRequest) {
   const { localId, plan, userId, isOwner } = await req.json()
@@ -16,13 +16,33 @@ export async function POST(req: NextRequest) {
   }
 
   const token = authHeader.split(' ')[1]
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const { data: { user }, error } = await supabase.auth.getUser(token)
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !user || user.id !== userId) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const email = user.email!
+
+  // Validar que el localId pertenece realmente a este usuario
+  // Opción A: es colaborador de ese local
+  const { data: colab } = await supabaseAdmin
+    .from('colaboradores')
+    .select('local_id')
+    .eq('email', email.toLowerCase())
+    .eq('local_id', localId)
+    .eq('activo', true)
+    .maybeSingle()
+
+  if (!colab) {
+    // Opción B: es propietario verificado por el SaaS central
+    const acceso = await verificarAcceso(email)
+    if (!acceso?.tiene_acceso || acceso.ret_org_id !== localId) {
+      return NextResponse.json({ error: 'localId no autorizado para este usuario' }, { status: 403 })
+    }
+    // Validar también que el plan coincide con lo que dice el central
+    if (acceso.plan && acceso.plan !== plan) {
+      return NextResponse.json({ error: 'Plan no coincide con la suscripción activa' }, { status: 403 })
+    }
   }
 
   // Actualizar app_metadata en el JWT
