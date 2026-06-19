@@ -10,7 +10,7 @@ interface Producto { id: string; nombre: string; precio: number; categoria_id: s
 interface CartItem { productoId: string; nombre: string; precio: number; cantidad: number; observacion: string }
 
 export default function NuevaComandaPage() {
-  const { localId } = useSession()
+  const { localId, usaCocina } = useSession()
   const router = useRouter()
   const params = useParams()
   const mesaId = params.id as string
@@ -109,7 +109,7 @@ export default function NuevaComandaPage() {
         subtotal: i.precio * i.cantidad,
         observacion: i.observacion || null,
         tanda,
-        estado: 'pendiente',
+        estado: usaCocina ? 'pendiente' : 'listo',
       }))
     )
 
