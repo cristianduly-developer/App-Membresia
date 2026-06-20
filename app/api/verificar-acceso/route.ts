@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verificarAcceso } from '@/lib/supabaseCentral'
+import { createClient } from '@supabase/supabase-js'
 
 export async function GET(req: NextRequest) {
   const email = req.nextUrl.searchParams.get('email')
@@ -12,13 +13,12 @@ export async function GET(req: NextRequest) {
   }
 
   const token = authHeader.split(' ')[1]
-
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !user || user.email?.toLowerCase() !== email.toLowerCase()) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  // Verificar si es colaborador en la app de gastronomía
+  // Verificar si es colaborador
   const { data: colab } = await supabaseAdmin
     .from('colaboradores')
     .select('local_id, rol, mesas_asignadas')
@@ -27,14 +27,6 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
 
   if (colab) {
-    console.log(JSON.stringify({
-      event: 'login_ok',
-      email,
-      localId: colab.local_id,
-      rol: colab.rol,
-      esColab: true,
-      ts: new Date().toISOString(),
-    }))
     return NextResponse.json({
       esColab: true,
       localId: colab.local_id,
@@ -43,44 +35,59 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Si no es colaborador, verificar contra el central
+  // Verificar contra el central
   const acceso = await verificarAcceso(email)
-  if (!acceso || !acceso.tiene_acceso) {
-    return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+
+  if (acceso && acceso.tiene_acceso) {
+    // Auto-registrar empleado si no existe
+    const central = createClient(
+      process.env.CENTRAL_URL!,
+      process.env.CENTRAL_SERVICE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+    const { data: empExiste } = await central
+      .from('empleados_organizacion')
+      .select('id')
+      .eq('org_id', acceso.ret_org_id)
+      .eq('email', email.toLowerCase())
+      .maybeSingle()
+    if (!empExiste) {
+      await central.from('empleados_organizacion').insert({
+        org_id: acceso.ret_org_id,
+        email: email.toLowerCase(),
+        nombre: acceso.nombre_docente || null,
+        activo: true,
+      })
+    }
+    return NextResponse.json({ esColab: false, acceso })
   }
 
-  // Auto-registrar el email en empleados_organizacion del central si no existe
-  const { createClient } = await import('@supabase/supabase-js')
+  // Sin acceso — verificar si está suspendida o impaga
   const central = createClient(
     process.env.CENTRAL_URL!,
     process.env.CENTRAL_SERVICE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } }
   )
-  const { data: empExiste } = await central
+  const { data: empData } = await central
     .from('empleados_organizacion')
-    .select('id')
-    .eq('org_id', acceso.ret_org_id)
+    .select('org_id')
     .eq('email', email.toLowerCase())
-    .maybeSingle()
+    .limit(1)
 
-  if (!empExiste) {
-    await central.from('empleados_organizacion').insert({
-      org_id: acceso.ret_org_id,
-      email: email.toLowerCase(),
-      nombre: acceso.nombre_docente || null,
-      activo: true,
-    })
-    console.log('empleado auto-registrado en central:', email)
+  if (empData && empData.length > 0) {
+    const { data: subData } = await central
+      .from('suscripciones_apps')
+      .select('estado')
+      .eq('org_id', empData[0].org_id)
+      .eq('app_id', 'app-gastronomia')
+      .in('estado', ['suspendido', 'impago'])
+      .limit(1)
+      .maybeSingle()
+
+    if (subData?.estado) {
+      return NextResponse.json({ error: 'cuenta_suspendida', estado: subData.estado }, { status: 403 })
+    }
   }
 
-  console.log(JSON.stringify({
-    event: 'login_ok',
-    email,
-    localId: acceso.ret_org_id,
-    plan: acceso.plan,
-    esColab: false,
-    ts: new Date().toISOString(),
-  }))
-
-  return NextResponse.json({ esColab: false, acceso })
+  return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 }

@@ -6,23 +6,155 @@ import { useSession } from '@/lib/sessionStore'
 import { getPermisos, type RolSistema } from '@/lib/permisos'
 import { type Plan } from '@/lib/planLimits'
 
+const PLAN_MAP: Record<string, Plan> = {
+  basico: 'basico',
+  profesional: 'premium',
+  premium: 'premium',
+}
+
+const WA_LINK = 'https://wa.me/5491140902990'
+
+// ─── Pantalla registro demo ───────────────────────────────────────────────────
+function PantallaRegistro({ onRegistrar, onLogout, registrando, error }: {
+  onRegistrar: () => void
+  onLogout: () => void
+  registrando: boolean
+  error: boolean
+}) {
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm flex flex-col gap-5">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-20 h-20 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <span className="text-4xl">🍽️</span>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Probá GastroApp</h1>
+          <p className="text-gray-400 text-sm">28 días gratis, sin tarjeta de crédito</p>
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+          {[
+            '🍽️ Gestión de mesas y pedidos en tiempo real',
+            '👨‍🍳 Comandas a cocina desde la mesa',
+            '📱 Menú QR para los clientes',
+            '🛵 Módulo de delivery integrado',
+            '📊 Reportes de ventas y productos',
+            '👥 Múltiples mozos y roles',
+          ].map(b => (
+            <div key={b} className="text-sm text-gray-300">{b}</div>
+          ))}
+        </div>
+
+        <div className="bg-green-950 border border-green-800 rounded-2xl px-4 py-3 text-center">
+          <p className="text-green-300 font-bold text-sm">✨ 28 días gratis — plan Profesional completo</p>
+          <p className="text-green-600 text-xs mt-0.5">Sin límites durante la prueba</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-950 border border-red-800 text-red-300 rounded-xl p-3 text-sm text-center">
+            Ocurrió un error. Intentá de nuevo.
+          </div>
+        )}
+
+        <button
+          onClick={onRegistrar}
+          disabled={registrando}
+          className="w-full py-4 rounded-2xl text-white font-bold text-base bg-violet-600 hover:bg-violet-700 active:scale-95 transition-all disabled:opacity-60"
+        >
+          {registrando ? 'Creando tu cuenta...' : '🚀 Empezar prueba gratis'}
+        </button>
+
+        <button onClick={onLogout} className="w-full py-3 rounded-2xl text-gray-500 text-sm border border-gray-800">
+          Salir
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Pantalla demo vencido ────────────────────────────────────────────────────
+function PantallaDemoVencido({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm flex flex-col gap-5 items-center text-center">
+        <div className="text-6xl">⏰</div>
+        <h1 className="text-2xl font-bold text-white">Tu prueba gratuita terminó</h1>
+        <p className="text-gray-400 text-sm leading-relaxed">
+          Usaste los 28 días de prueba de GastroApp.<br />
+          Para seguir usando la app, activá tu cuenta.
+        </p>
+        <div className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+          {[
+            '🍽️ Pedidos y mesas sin límite',
+            '👨‍🍳 Comandas a cocina en tiempo real',
+            '📱 Menú QR para clientes',
+            '🛵 Delivery integrado',
+          ].map(b => (
+            <div key={b} className="text-sm text-gray-300 text-left">{b}</div>
+          ))}
+        </div>
+        <a
+          href={`${WA_LINK}?text=Hola!%20Quiero%20activar%20mi%20cuenta%20de%20GastroApp`}
+          target="_blank" rel="noopener noreferrer"
+          className="w-full py-4 rounded-2xl text-white font-bold flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 transition-all"
+        >
+          💬 Contactar para activar
+        </a>
+        <button onClick={onLogout} className="w-full py-3 rounded-2xl text-gray-500 text-sm border border-gray-800">
+          Salir
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Pantalla suspendida ──────────────────────────────────────────────────────
+function PantallaSuspendida({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm flex flex-col gap-5 items-center text-center">
+        <div className="text-6xl">🔒</div>
+        <h1 className="text-2xl font-bold text-white">Cuenta suspendida</h1>
+        <p className="text-gray-400 text-sm leading-relaxed">
+          Tu cuenta no está activa en este momento.<br />
+          Contactá al administrador para regularizar tu situación.
+        </p>
+        <a
+          href={`${WA_LINK}?text=Hola!%20Mi%20cuenta%20de%20GastroApp%20está%20suspendida`}
+          target="_blank" rel="noopener noreferrer"
+          className="w-full py-4 rounded-2xl text-white font-bold flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 transition-all"
+        >
+          💬 Contactar al administrador
+        </a>
+        <button onClick={onLogout} className="w-full py-3 rounded-2xl text-gray-500 text-sm border border-gray-800">
+          Salir
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Login principal ──────────────────────────────────────────────────────────
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pantalla, setPantalla] = useState<'login' | 'registro' | 'demo_vencido' | 'suspendido'>('login')
+  const [registrando, setRegistrando] = useState(false)
+  const [errorRegistro, setErrorRegistro] = useState(false)
+  const [sessionActual, setSessionActual] = useState<{ user: { email?: string; id: string }; access_token: string } | null>(null)
   const { setSession } = useSession()
   const router = useRouter()
 
   useEffect(() => {
     let procesado = false
-
     const { data: { subscription } } = supabaseApp.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session && !procesado) {
         procesado = true
         setLoading(true)
+        setSessionActual(session)
         procesarSesion(session)
       }
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
@@ -37,9 +169,13 @@ export default function LoginPage() {
       const json = await res.json()
 
       if (!res.ok) {
-        setError('No tenés acceso a esta aplicación. Contactá al administrador.')
         await supabaseApp.auth.signOut()
         setLoading(false)
+        if (json.error === 'cuenta_suspendida') {
+          setPantalla('suspendido')
+        } else {
+          setPantalla('registro')
+        }
         return
       }
 
@@ -61,14 +197,31 @@ export default function LoginPage() {
         diasRestantes = null
       } else {
         const acceso = json.acceso
-        if (!acceso.tiene_acceso) {
-          setError('Sin acceso. Verificá tu suscripción.')
+        if (!acceso?.tiene_acceso) {
           await supabaseApp.auth.signOut()
           setLoading(false)
+          setPantalla('registro')
           return
         }
+
+        // Demo vencido
+        if (acceso.estado === 'demo' && acceso.dias_restantes !== null && acceso.dias_restantes <= 0) {
+          await supabaseApp.auth.signOut()
+          setLoading(false)
+          setPantalla('demo_vencido')
+          return
+        }
+
+        // Impago
+        if (acceso.estado === 'impago') {
+          await supabaseApp.auth.signOut()
+          setLoading(false)
+          setPantalla('suspendido')
+          return
+        }
+
         localId = acceso.ret_org_id
-        plan = acceso.plan as Plan
+        plan = PLAN_MAP[acceso.plan] ?? 'basico'
         rolSistema = 'owner'
         isOwner = true
         nombreNegocio = acceso.nombre_docente ?? ''
@@ -76,21 +229,16 @@ export default function LoginPage() {
         diasRestantes = acceso.dias_restantes
       }
 
-      // Actualizar JWT con local_id y plan
       await fetch('/api/set-tenant', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ localId, plan, userId: session.user.id, isOwner }),
       })
 
-      // Refrescar el JWT del cliente para que RLS vea el nuevo local_id
       await supabaseApp.auth.refreshSession()
 
-      const nombreUsuario = session.user.user_metadata?.full_name
-        ?? session.user.user_metadata?.name
+      const nombreUsuario = (session as any).user.user_metadata?.full_name
+        ?? (session as any).user.user_metadata?.name
         ?? email.split('@')[0]
 
       setSession({
@@ -105,7 +253,6 @@ export default function LoginPage() {
         nombreUsuario,
       })
 
-      // Verificar onboarding y cargar flags de módulos
       const { data: config } = await supabaseApp
         .from('config_local')
         .select('onboarding_completo, usa_mesas, usa_delivery, usa_cocina, usa_qr')
@@ -114,10 +261,10 @@ export default function LoginPage() {
 
       if (config) {
         setSession({
-          usaMesas:   config.usa_mesas   ?? false,
+          usaMesas:    config.usa_mesas    ?? false,
           usaDelivery: config.usa_delivery ?? false,
-          usaCocina:  config.usa_cocina  ?? false,
-          usaQr:      config.usa_qr      ?? false,
+          usaCocina:   config.usa_cocina   ?? false,
+          usaQr:       config.usa_qr       ?? false,
         })
       }
 
@@ -132,15 +279,48 @@ export default function LoginPage() {
     }
   }
 
+  const handleRegistrar = async () => {
+    if (!sessionActual) return
+    setRegistrando(true)
+    setErrorRegistro(false)
+    try {
+      // Obtener sesión fresca (la anterior puede haber expirado)
+      const { data: { session } } = await supabaseApp.auth.getSession()
+      const token = session?.access_token ?? sessionActual.access_token
+      const res = await fetch('/api/registrar-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.ok || data.ya_existe) {
+        setPantalla('login')
+        setLoading(true)
+        await new Promise(r => setTimeout(r, 1500))
+        await procesarSesion(sessionActual)
+      } else {
+        setErrorRegistro(true)
+      }
+    } catch {
+      setErrorRegistro(true)
+    } finally {
+      setRegistrando(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabaseApp.auth.signOut()
+    setSessionActual(null)
+    setPantalla('login')
+    setLoading(false)
+    setError(null)
+  }
+
   const handleGoogle = async () => {
     setLoading(true)
     setError(null)
     const { data, error } = await supabaseApp.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/login`,
-        skipBrowserRedirect: true,
-      },
+      options: { redirectTo: `${window.location.origin}/login`, skipBrowserRedirect: true },
     })
     if (error || !data.url) {
       setError('Error al iniciar sesión con Google.')
@@ -150,10 +330,19 @@ export default function LoginPage() {
     window.location.href = data.url
   }
 
+  if (pantalla === 'registro') {
+    return <PantallaRegistro onRegistrar={handleRegistrar} onLogout={handleLogout} registrando={registrando} error={errorRegistro} />
+  }
+  if (pantalla === 'demo_vencido') {
+    return <PantallaDemoVencido onLogout={handleLogout} />
+  }
+  if (pantalla === 'suspendido') {
+    return <PantallaSuspendida onLogout={handleLogout} />
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-10">
           <div className="w-20 h-20 bg-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
             <span className="text-4xl">🍽️</span>
@@ -162,7 +351,6 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm mt-1">Sistema de gestión gastronómica</p>
         </div>
 
-        {/* Card */}
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-xl">
           <h2 className="text-lg font-semibold text-white mb-1">Iniciar sesión</h2>
           <p className="text-gray-400 text-sm mb-6">Ingresá con tu cuenta de Google para continuar</p>
@@ -192,9 +380,7 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
-          Versión 1.0.0
-        </p>
+        <p className="text-center text-gray-600 text-xs mt-6">Versión 1.0.0</p>
       </div>
     </div>
   )
