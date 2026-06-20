@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   const email = user.email.toLowerCase().trim()
+  const nombreGoogle = (user.user_metadata?.full_name as string | undefined)?.trim() || null
 
   const central = createClient(
     process.env.CENTRAL_URL!,
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       .replace(/\b\w/g, (c) => c.toUpperCase())
     const { data: org, error: orgErr } = await central
       .from('organizaciones')
-      .insert({ nombre, email_contacto: email, owner_id: OWNER_ID })
+      .insert({ nombre: nombreGoogle || nombre, email_contacto: email, owner_id: OWNER_ID })
       .select('id')
       .single()
     if (orgErr || !org) {
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Insertar notificación en el panel admin
-  await central.from('notificaciones_admin').insert({ org_id: orgId, tipo: 'nueva_org' })
+  await central.from('notificaciones_admin').insert({ org_id: orgId, tipo: 'nueva_org', app_id: APP_ID })
 
   // Notificar al admin por email
   try {
