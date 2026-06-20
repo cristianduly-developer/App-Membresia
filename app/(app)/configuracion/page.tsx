@@ -48,7 +48,7 @@ export default function ConfiguracionPage() {
       .from('config_local')
       .select('*')
       .eq('local_id', localId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data) {
           const c: Config = {

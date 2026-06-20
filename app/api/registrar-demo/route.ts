@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 const DEMO_DIAS = 28
 const APP_ID    = 'app-gastronomia'
@@ -94,6 +95,20 @@ export async function POST(req: NextRequest) {
   if (subErr) {
     console.error('[registrar-demo] Error creando suscripción:', subErr)
     return NextResponse.json({ ok: false, error: 'error_central' }, { status: 500 })
+  }
+
+  // Crear config_local en la app para que el onboarding funcione
+  const { error: configErr } = await supabaseAdmin
+    .from('config_local')
+    .upsert({
+      local_id:     orgId,
+      nombre_negocio: '',
+      tipo_negocio: 'restaurante',
+      onboarding_completo: false,
+    }, { onConflict: 'local_id', ignoreDuplicates: true })
+
+  if (configErr) {
+    console.error('[registrar-demo] Error creando config_local:', configErr)
   }
 
   return NextResponse.json({ ok: true })
