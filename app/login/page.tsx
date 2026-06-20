@@ -12,7 +12,7 @@ const PLAN_MAP: Record<string, Plan> = {
   premium: 'premium',
 }
 
-const WA_LINK = 'https://wa.me/5491140902990'
+const WA_LINK = 'https://wa.me/5492235767784'
 
 // ─── Pantalla registro demo ───────────────────────────────────────────────────
 function PantallaRegistro({ onRegistrar, onLogout, registrando, error }: {
