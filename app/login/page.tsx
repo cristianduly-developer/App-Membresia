@@ -169,11 +169,12 @@ export default function LoginPage() {
       const json = await res.json()
 
       if (!res.ok) {
-        await supabaseApp.auth.signOut()
         setLoading(false)
         if (json.error === 'cuenta_suspendida') {
+          await supabaseApp.auth.signOut()
           setPantalla('suspendido')
         } else {
+          // No cerrar sesión — necesitamos el token para registrar-demo
           setPantalla('registro')
         }
         return
@@ -198,7 +199,6 @@ export default function LoginPage() {
       } else {
         const acceso = json.acceso
         if (!acceso?.tiene_acceso) {
-          await supabaseApp.auth.signOut()
           setLoading(false)
           setPantalla('registro')
           return
