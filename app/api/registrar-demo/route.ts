@@ -111,5 +111,45 @@ export async function POST(req: NextRequest) {
     console.error('[registrar-demo] Error creando config_local:', configErr)
   }
 
+  // Insertar notificación en el panel admin
+  await central.from('notificaciones_admin').insert({ org_id: orgId, tipo: 'nueva_org' })
+
+  // Notificar al admin por email
+  try {
+    const { data: orgData } = await central
+      .from('organizaciones')
+      .select('nombre, email_contacto')
+      .eq('id', orgId)
+      .single()
+
+    const fechaAlta = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'onboarding@resend.dev',
+        to: 'cristianduly@gmail.com',
+        subject: `🆕 Nueva cuenta demo — ${orgData?.nombre ?? email}`,
+        html: `
+          <h2>🆕 Nueva cuenta demo en App de Gastronomía</h2>
+          <table style="border-collapse:collapse;font-family:sans-serif;">
+            <tr><td style="padding:8px;font-weight:bold;">Nombre</td><td style="padding:8px;">${orgData?.nombre ?? '—'}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">Email</td><td style="padding:8px;">${orgData?.email_contacto ?? email}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">App</td><td style="padding:8px;">Gastronomía</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">Plan</td><td style="padding:8px;">Profesional (demo)</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">Días de prueba</td><td style="padding:8px;">${DEMO_DIAS} días</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">Fecha de alta</td><td style="padding:8px;">${fechaAlta}</td></tr>
+          </table>
+        `,
+      }),
+    })
+  } catch (mailErr) {
+    console.error('[registrar-demo] Error enviando email:', mailErr)
+  }
+
   return NextResponse.json({ ok: true })
 }
