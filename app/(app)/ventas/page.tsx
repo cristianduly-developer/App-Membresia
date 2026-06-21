@@ -126,7 +126,7 @@ export default function VentasPage() {
       .eq('estado', 'abierta')
       .maybeSingle()
 
-    const { data: venta } = await supabaseApp
+    const { data: venta, error: ventaError } = await supabaseApp
       .from('ventas')
       .insert({
         local_id: localId,
@@ -138,17 +138,28 @@ export default function VentasPage() {
       .select('id')
       .single()
 
-    if (venta) {
-      await supabaseApp.from('items_venta').insert(
-        carrito.map((i) => ({
-          venta_id: venta.id,
-          producto_id: i.producto_id,
-          nombre: i.nombre,
-          precio: i.precio,
-          cantidad: i.cantidad,
-          subtotal: i.precio * i.cantidad,
-        }))
-      )
+    if (ventaError || !venta) {
+      setCobrando(false)
+      alert('Error al registrar la venta. Intentá de nuevo.')
+      return
+    }
+
+    const { error: itemsError } = await supabaseApp.from('items_venta').insert(
+      carrito.map((i) => ({
+        venta_id: venta.id,
+        producto_id: i.producto_id,
+        nombre: i.nombre,
+        precio: i.precio,
+        cantidad: i.cantidad,
+        subtotal: i.precio * i.cantidad,
+      }))
+    )
+
+    if (itemsError) {
+      await supabaseApp.from('ventas').delete().eq('id', venta.id)
+      setCobrando(false)
+      alert('Error al registrar los items. Intentá de nuevo.')
+      return
     }
 
     Sentry.addBreadcrumb({ category: 'ventas', message: 'venta cerrada', data: { metodo, total }, level: 'info' })

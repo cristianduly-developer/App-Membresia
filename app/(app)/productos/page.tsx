@@ -99,7 +99,9 @@ export default function ProductosPage() {
   }
 
   const eliminarProducto = async (id: string) => {
-    await supabaseApp.from('productos').update({ activo: false, updated_at: new Date().toISOString() }).eq('id', id)
+    if (!confirm('¿Eliminar este producto?')) return
+    const { error } = await supabaseApp.from('productos').update({ activo: false, updated_at: new Date().toISOString() }).eq('id', id)
+    if (error) { alert('Error al eliminar el producto'); return }
     setProductos((prev) => prev.filter((p) => p.id !== id))
   }
 

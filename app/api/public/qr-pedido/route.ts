@@ -11,8 +11,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { localId, mesaId, mesaNombre, items, total } = body
 
-  if (!localId || !mesaId || !items?.length || !total) {
+  if (!localId || !mesaId || !items?.length) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  }
+  if (items.length > 50) {
+    return NextResponse.json({ error: 'Demasiados items' }, { status: 400 })
   }
 
   const key = `${ip}:${localId}:${mesaId}`
@@ -34,12 +37,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Local no encontrado' }, { status: 404 })
   }
 
+  // Recalcular total server-side usando precios reales de BD
+  const productoIds = items.map((i: { producto_id: string }) => i.producto_id)
+  const { data: productosDB } = await supabaseAdmin
+    .from('productos')
+    .select('id, precio, nombre')
+    .eq('local_id', localId)
+    .in('id', productoIds)
+
+  if (!productosDB?.length) {
+    return NextResponse.json({ error: 'Productos no encontrados' }, { status: 400 })
+  }
+
+  const precioMap = Object.fromEntries(productosDB.map((p: { id: string; precio: number }) => [p.id, p.precio]))
+  const totalReal = items.reduce((acc: number, i: { producto_id: string; cantidad: number }) => {
+    return acc + (precioMap[i.producto_id] ?? 0) * i.cantidad
+  }, 0)
+
+  const itemsConPrecio = items.map((i: { producto_id: string; nombre: string; cantidad: number; observacion?: string }) => ({
+    producto_id: i.producto_id,
+    nombre: i.nombre,
+    precio: precioMap[i.producto_id] ?? 0,
+    cantidad: i.cantidad,
+    subtotal: (precioMap[i.producto_id] ?? 0) * i.cantidad,
+    observacion: i.observacion ?? null,
+  }))
+
   const { error } = await supabaseAdmin.from('pedidos_qr').insert({
     local_id: localId,
     mesa_id: mesaId,
     mesa_nombre: mesaNombre,
-    items,
-    total,
+    items: itemsConPrecio,
+    total: totalReal,
   })
 
   if (error) {

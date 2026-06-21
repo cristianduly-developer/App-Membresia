@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 const DEMO_DIAS = 28
 const APP_ID    = 'app-gastronomia'
-const OWNER_ID  = 'd8eef2e2-7e07-4ec9-9c6e-766addf89cc5'
+const OWNER_ID  = process.env.DEMO_OWNER_ID ?? 'd8eef2e2-7e07-4ec9-9c6e-766addf89cc5'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')

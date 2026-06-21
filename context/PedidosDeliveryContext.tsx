@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 
@@ -28,6 +28,7 @@ export function PedidosDeliveryProvider({ children }: { children: ReactNode }) {
   const { localId } = useSession()
   const [nuevoPedido, setNuevoPedido] = useState<PedidoDeliveryNotif | null>(null)
   const [totalPendientes, setTotalPendientes] = useState(0)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
   const cargarTotal = useCallback(async () => {
     if (!localId) return
@@ -52,7 +53,8 @@ export function PedidosDeliveryProvider({ children }: { children: ReactNode }) {
           if (nuevo.origen === 'link') {
             setNuevoPedido(nuevo)
             try {
-              const ctx = new AudioContext()
+              if (!audioCtxRef.current) audioCtxRef.current = new AudioContext()
+              const ctx = audioCtxRef.current
               const osc = ctx.createOscillator()
               const gain = ctx.createGain()
               osc.connect(gain)

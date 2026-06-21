@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 
@@ -29,6 +29,7 @@ export function PedidosQRProvider({ children }: { children: ReactNode }) {
   const { localId } = useSession()
   const [pendientes, setPendientes] = useState<PedidoQR[]>([])
   const [nuevoPedido, setNuevoPedido] = useState<PedidoQR | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
   const cargar = useCallback(async () => {
     if (!localId) return
@@ -53,7 +54,8 @@ export function PedidosQRProvider({ children }: { children: ReactNode }) {
           setPendientes((prev) => [...prev, nuevo])
           setNuevoPedido(nuevo)
           try {
-            const ctx = new AudioContext()
+            if (!audioCtxRef.current) audioCtxRef.current = new AudioContext()
+            const ctx = audioCtxRef.current
             const osc = ctx.createOscillator()
             const gain = ctx.createGain()
             osc.connect(gain)
