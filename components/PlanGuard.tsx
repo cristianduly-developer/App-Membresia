@@ -18,7 +18,7 @@ const UPGRADE_PLAN: Partial<Record<keyof PlanLimits, string>> = {
   usaLiquidaciones:     'Profesional',
   usaAlertaDesercion:   'Profesional',
   usaReportesAvanzados: 'Premium',
-  usaCierreCaja:        'Premium',
+  usaCierreCaja:        'Básico',
 }
 
 interface Props {
