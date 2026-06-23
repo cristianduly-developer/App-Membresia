@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
-import { useSession } from '@/lib/sessionStore'
+import { useSession, type RubroOrg } from '@/lib/sessionStore'
 import { getLimites } from '@/lib/planLimits'
 
 interface Colaborador {
@@ -170,7 +170,7 @@ export default function ConfigPage() {
                   {RUBROS.map(r => (
                     <button
                       key={r.key}
-                      onClick={() => setForm(f => ({ ...f, rubro: r.key }))}
+                      onClick={() => setForm(f => ({ ...f, rubro: r.key as RubroOrg }))}
                       className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition text-left
                         ${form.rubro === r.key
                           ? 'border-violet-500 bg-violet-900/30 text-white'
