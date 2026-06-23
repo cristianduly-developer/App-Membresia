@@ -27,10 +27,28 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
 
   if (colab) {
+    // Verificar que la suscripción del owner sigue activa
+    const central = createClient(
+      process.env.CENTRAL_URL!,
+      process.env.CENTRAL_SERVICE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+    const { data: subData } = await central
+      .from('suscripciones_apps')
+      .select('estado, plan')
+      .eq('org_id', colab.org_id)
+      .eq('app_id', 'app-membresias')
+      .maybeSingle()
+
+    if (!subData || ['suspendido', 'impago'].includes(subData.estado)) {
+      return NextResponse.json({ error: 'cuenta_suspendida' }, { status: 403 })
+    }
+
     return NextResponse.json({
       esColab: true,
       localId: colab.org_id,
       rol: colab.rol,
+      plan: subData.plan ?? 'basico',
     })
   }
 

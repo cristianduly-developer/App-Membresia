@@ -80,7 +80,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     usaLiquidaciones: true,
     usaAlertaDesercion: true,
     usaReportesAvanzados: false,
-    usaCierreCaja: false,
+    usaCierreCaja: true,
   },
   premium: {
     maxSocios: null,
