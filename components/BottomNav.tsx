@@ -8,11 +8,10 @@ const MAIN_ITEMS = [
   { href: '/socios',    label: 'Socios',    emoji: '👥', permiso: 'verSocios'    },
   { href: '/cobros',    label: 'Cobros',    emoji: '💰', permiso: 'verCobros'    },
   { href: '/dashboard', label: 'Inicio',    emoji: '📊', permiso: 'verDashboard' },
-  { href: '/config',    label: 'Config',    emoji: '⚙️', permiso: 'verConfig'    },
+  { href: '/membresias',label: 'Membresías',emoji: '🎫', permiso: 'verMembresias'},
 ] as const
 
 const MORE_ITEMS = [
-  { href: '/membresias',   label: 'Membresías',   emoji: '🎫', permiso: 'verMembresias'    },
   { href: '/actividades',  label: 'Actividades',  emoji: '🏃', permiso: 'verActividades'   },
   { href: '/asistencias',  label: 'Asistencias',  emoji: '📋', permiso: 'verAsistencias'   },
   { href: '/profesores',   label: 'Profesores',   emoji: '👨‍🏫', permiso: 'verProfesores'    },
@@ -20,6 +19,7 @@ const MORE_ITEMS = [
   { href: '/apto-medico',  label: 'Apto médico',  emoji: '🩺', permiso: 'verSocios'        },
   { href: '/caja',         label: 'Caja',         emoji: '🧾', permiso: 'verCaja'          },
   { href: '/rentabilidad', label: 'Rentabilidad', emoji: '📈', permiso: 'verRentabilidad'  },
+  { href: '/config',       label: 'Config',       emoji: '⚙️', permiso: 'verConfig'        },
 ] as const
 
 export function BottomNav() {

@@ -132,7 +132,22 @@ export default function ConfigPage() {
     <RouteGuard permiso="verConfig">
       <div className="max-w-lg mx-auto">
 
-        <h1 className="text-xl font-bold text-white mb-6">Configuración</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-white">Configuración</h1>
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+            estadoSuscripcion === 'activo' ? 'bg-green-900/40 text-green-400 border border-green-800' :
+            estadoSuscripcion === 'demo'   ? 'bg-yellow-900/40 text-yellow-400 border border-yellow-800' :
+            'bg-red-900/40 text-red-400 border border-red-800'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              estadoSuscripcion === 'activo' ? 'bg-green-400' :
+              estadoSuscripcion === 'demo'   ? 'bg-yellow-400' : 'bg-red-400'
+            }`} />
+            {estadoSuscripcion === 'activo' ? 'Activo' :
+             estadoSuscripcion === 'demo'   ? `Demo${diasRestantes !== null ? ` · ${diasRestantes}d` : ''}` :
+             'Inactivo'}
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-16">
@@ -286,6 +301,20 @@ export default function ConfigPage() {
               </div>
             )}
 
+            {/* Soporte */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Soporte</h2>
+              <p className="text-gray-500 text-sm">¿Tenés alguna duda o problema? Escribinos por WhatsApp.</p>
+              <a
+                href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-700 hover:bg-green-600 text-white font-semibold text-sm transition"
+              >
+                💬 Contactar soporte por WhatsApp
+              </a>
+            </div>
+
             {/* Cuenta */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Cuenta</h2>
@@ -295,9 +324,9 @@ export default function ConfigPage() {
               </div>
               <button
                 onClick={cerrarSesion}
-                className="w-full py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-sm transition"
+                className="w-full py-3 rounded-xl bg-red-900/40 hover:bg-red-900/60 text-red-400 font-semibold text-sm transition border border-red-900"
               >
-                Cerrar sesión
+                🚪 Cerrar sesión
               </button>
             </div>
 
