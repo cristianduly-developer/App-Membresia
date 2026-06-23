@@ -30,6 +30,7 @@ export default function CheckinPage() {
   const [resultado, setResultado] = useState<ResultadoCheckin | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [scannerActivo, setScannerActivo] = useState(false)
+  const [errorCamara, setErrorCamara] = useState(false)
 
   const scannerRef = useRef<any>(null)
   const scannerDivId = 'qr-scanner'
@@ -48,6 +49,10 @@ export default function CheckinPage() {
 
   const iniciarScanner = async () => {
     if (scannerActivo) return
+    // Esperar que el div esté montado en el DOM
+    await new Promise(r => setTimeout(r, 300))
+    const el = document.getElementById(scannerDivId)
+    if (!el) return
     try {
       const { Html5Qrcode } = await import('html5-qrcode')
       const scanner = new Html5Qrcode(scannerDivId)
@@ -62,8 +67,11 @@ export default function CheckinPage() {
         },
         undefined
       )
-    } catch {
-      setModo('manual')
+    } catch (err) {
+      console.error('[QR] Error al iniciar scanner:', err)
+      setScannerActivo(false)
+      scannerRef.current = null
+      setErrorCamara(true)
     }
   }
 
@@ -309,9 +317,22 @@ export default function CheckinPage() {
               id={scannerDivId}
               className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 aspect-square"
             />
-            <p className="text-center text-gray-500 text-sm mt-3">
-              Apuntá la cámara al código QR del socio
-            </p>
+            {errorCamara ? (
+              <div className="mt-3 text-center">
+                <p className="text-red-400 text-sm mb-2">No se pudo acceder a la cámara</p>
+                <p className="text-gray-500 text-xs">Verificá que el navegador tenga permiso de cámara, o usá el modo manual</p>
+                <button
+                  onClick={() => { setErrorCamara(false); setModo('manual') }}
+                  className="mt-3 px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
+                >
+                  Usar modo manual
+                </button>
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 text-sm mt-3">
+                Apuntá la cámara al código QR del socio
+              </p>
+            )}
           </div>
         )}
 
