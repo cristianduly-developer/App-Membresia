@@ -1,332 +1,278 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 
-interface Caja {
-  id: string
-  monto_apertura: number
-  monto_cierre: number | null
-  diferencia: number | null
-  created_at: string
-}
-
-interface GastoCaja {
+interface Gasto {
   id: string
   descripcion: string
   monto: number
-  created_at: string
+  categoria: string
+  fecha: string
 }
 
-interface VentaResumen {
-  total: number
-  metodo_pago: string
+const CATEGORIAS = [
+  { key: 'limpieza', label: 'Limpieza', icon: '🧹' },
+  { key: 'mantenimiento', label: 'Mantenimiento', icon: '🔧' },
+  { key: 'insumos', label: 'Insumos', icon: '📦' },
+  { key: 'servicios', label: 'Servicios', icon: '💡' },
+  { key: 'varios', label: 'Varios', icon: '📋' },
+  { key: 'otros', label: 'Otros', icon: '💸' },
+]
+
+function catIcon(cat: string) {
+  return CATEGORIAS.find(c => c.key === cat)?.icon ?? '💸'
+}
+
+function formatFecha(f: string) {
+  return new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+}
+
+function diasAtras(n: number) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().split('T')[0]
 }
 
 export default function CajaPage() {
-  const { localId } = useSession()
-  const router = useRouter()
-  const [cajaActual, setCajaActual] = useState<Caja | null>(null)
-  const [gastos, setGastos] = useState<GastoCaja[]>([])
-  const [ventas, setVentas] = useState<VentaResumen[]>([])
+  const { localId, permisos } = useSession()
+  const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
+  const [diasFiltro, setDiasFiltro] = useState(30)
 
-  const [montoApertura, setMontoApertura] = useState('')
-  const [montoCierre, setMontoCierre] = useState('')
-  const [notasCierre, setNotasCierre] = useState('')
-  const [formGasto, setFormGasto] = useState({ descripcion: '', monto: '' })
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState({ descripcion: '', monto: '', categoria: 'otros', fecha: new Date().toISOString().split('T')[0] })
   const [guardando, setGuardando] = useState(false)
-  const [tab, setTab] = useState<'resumen' | 'gastos'>('resumen')
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { if (localId) cargarDatos() }, [localId])
+  useEffect(() => {
+    if (!localId) return
+    cargar()
+  }, [localId, diasFiltro])
 
-  const cargarDatos = async () => {
+  const cargar = async () => {
     setLoading(true)
-
-    // Buscar caja abierta
-    const { data: cajaData } = await supabaseApp
-      .from('caja')
-      .select('*')
-      .eq('local_id', localId)
-      .eq('estado', 'abierta')
-      .maybeSingle()
-
-    setCajaActual(cajaData ?? null)
-
-    if (cajaData) {
-      // Gastos de esta caja
-      const { data: gastosData } = await supabaseApp
-        .from('gastos_caja')
-        .select('*')
-        .eq('caja_id', cajaData.id)
-        .order('created_at', { ascending: false })
-      setGastos(gastosData ?? [])
-
-      // Ventas desde que se abrió la caja (con o sin caja_id, por fecha)
-      const { data: ventasData } = await supabaseApp
-        .from('ventas')
-        .select('total, metodo_pago')
-        .eq('local_id', localId)
-        .eq('estado', 'completada')
-        .gte('created_at', cajaData.created_at)
-      setVentas(ventasData ?? [])
-    } else {
-      setGastos([])
-      setVentas([])
-    }
-
+    const { data } = await supabaseApp
+      .from('gastos_caja')
+      .select('id, descripcion, monto, categoria, fecha')
+      .eq('org_id', localId)
+      .gte('fecha', diasAtras(diasFiltro))
+      .order('fecha', { ascending: false })
+      .order('created_at', { ascending: false })
+    setGastos((data ?? []) as Gasto[])
     setLoading(false)
   }
 
-  const abrirCaja = async () => {
-    if (!montoApertura || guardando) return
+  const guardar = async () => {
+    if (!form.descripcion.trim()) { setError('Ingresá una descripción'); return }
+    if (!form.monto || Number(form.monto) <= 0) { setError('Ingresá un monto válido'); return }
     setGuardando(true)
-    try {
-      const { error } = await supabaseApp.from('caja').insert({
-        local_id: localId,
-        estado: 'abierta',
-        monto_apertura: Number(montoApertura),
-      })
-      if (error) {
-        alert(error.code === '23505' ? 'Ya hay una caja abierta' : 'Error al abrir la caja')
-        return
-      }
-      setMontoApertura('')
-      cargarDatos()
-      router.refresh()
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  const cerrarCaja = async () => {
-    if (!cajaActual || !montoCierre || guardando) return
-    setGuardando(true)
-    try {
-      const diferencia = Number(montoCierre) - efectivoEsperado
-      const { error } = await supabaseApp.from('caja').update({
-        estado: 'cerrada',
-        monto_cierre: Number(montoCierre),
-        diferencia,
-        notas_cierre: notasCierre || null,
-      }).eq('id', cajaActual.id).eq('estado', 'abierta')
-      if (error) { alert('Error al cerrar la caja'); return }
-      router.refresh()
-      setMontoCierre('')
-      setNotasCierre('')
-      cargarDatos()
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  const agregarGasto = async () => {
-    if (!formGasto.descripcion || !formGasto.monto || !cajaActual) return
-    setGuardando(true)
-    await supabaseApp.from('gastos_caja').insert({
-      local_id: localId,
-      caja_id: cajaActual.id,
-      descripcion: formGasto.descripcion.trim(),
-      monto: Number(formGasto.monto),
+    setError(null)
+    const { error: e } = await supabaseApp.from('gastos_caja').insert({
+      org_id: localId,
+      descripcion: form.descripcion.trim(),
+      monto: parseFloat(form.monto),
+      categoria: form.categoria,
+      fecha: form.fecha,
     })
-    setFormGasto({ descripcion: '', monto: '' })
+    if (e) { setError(e.message); setGuardando(false); return }
+    setModal(false)
+    setForm({ descripcion: '', monto: '', categoria: 'otros', fecha: new Date().toISOString().split('T')[0] })
+    await cargar()
     setGuardando(false)
-    cargarDatos()
   }
 
-  const totalVentas    = ventas.reduce((s, v) => s + Number(v.total), 0)
-  const cantVentas     = ventas.length
-  const totalEfectivo  = ventas.filter((v) => v.metodo_pago === 'efectivo').reduce((s, v) => s + Number(v.total), 0)
-  const totalDigital   = totalVentas - totalEfectivo
-  const totalGastos    = gastos.reduce((s, g) => s + Number(g.monto), 0)
-  const efectivoEsperado = cajaActual
-    ? Number(cajaActual.monto_apertura) + totalEfectivo - totalGastos
-    : 0
+  const eliminar = async (id: string) => {
+    await supabaseApp.from('gastos_caja').delete().eq('id', id)
+    setGastos(g => g.filter(x => x.id !== id))
+  }
+
+  const total = gastos.reduce((s, g) => s + g.monto, 0)
+
+  // Agrupar por fecha
+  const porFecha = gastos.reduce((acc, g) => {
+    if (!acc[g.fecha]) acc[g.fecha] = []
+    acc[g.fecha].push(g)
+    return acc
+  }, {} as Record<string, Gasto[]>)
+  const fechas = Object.keys(porFecha).sort((a, b) => b.localeCompare(a))
 
   return (
     <RouteGuard permiso="verCaja">
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold text-white mb-6">Caja</h1>
+      <div className="max-w-2xl mx-auto">
 
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="text-xl font-bold text-white">Caja chica</h1>
+            <p className="text-gray-500 text-sm">Gastos del negocio</p>
+          </div>
+          {permisos?.verCaja && (
+            <button
+              onClick={() => setModal(true)}
+              className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-2"
+            >
+              <span className="text-lg leading-none">+</span> Gasto
+            </button>
+          )}
+        </div>
+
+        {/* Resumen */}
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-4 flex justify-between items-center">
+          <div>
+            <p className="text-red-400 text-xs uppercase tracking-wider font-medium">Egresado</p>
+            <p className="text-white text-2xl font-bold">${total.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="flex gap-2">
+            {[7, 30, 90].map(d => (
+              <button
+                key={d}
+                onClick={() => setDiasFiltro(d)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition
+                  ${diasFiltro === d ? 'bg-red-600/50 text-red-200' : 'bg-gray-800 text-gray-500'}`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Por categoría */}
+        {!loading && gastos.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {CATEGORIAS.map(cat => {
+              const subtotal = gastos.filter(g => g.categoria === cat.key).reduce((s, g) => s + g.monto, 0)
+              if (subtotal === 0) return null
+              return (
+                <div key={cat.key} className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
+                  <p className="text-xl">{cat.icon}</p>
+                  <p className="text-white text-sm font-bold">${subtotal.toLocaleString('es-AR')}</p>
+                  <p className="text-gray-500 text-xs">{cat.label}</p>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Lista */}
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : fechas.length === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            <p>Sin gastos registrados en este período</p>
+          </div>
         ) : (
-          <>
-            {/* Sin caja abierta */}
-            {!cajaActual && (
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-1">Apertura de caja</h2>
-                <p className="text-gray-400 text-sm mb-5">Ingresá el efectivo con el que iniciás el turno</p>
-                <div className="flex gap-3">
+          <div className="space-y-4">
+            {fechas.map(fecha => {
+              const subtotal = porFecha[fecha].reduce((s, g) => s + g.monto, 0)
+              return (
+                <div key={fecha}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{formatFecha(fecha)}</p>
+                    <p className="text-gray-500 text-xs">${subtotal.toLocaleString('es-AR')}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {porFecha[fecha].map(g => (
+                      <div key={g.id} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
+                        <span className="text-xl shrink-0">{catIcon(g.categoria)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{g.descripcion}</p>
+                          <p className="text-gray-500 text-xs capitalize">
+                            {CATEGORIAS.find(c => c.key === g.categoria)?.label ?? g.categoria}
+                          </p>
+                        </div>
+                        <p className="text-red-400 font-bold shrink-0">-${g.monto.toLocaleString('es-AR')}</p>
+                        {permisos?.verCaja && (
+                          <button
+                            onClick={() => eliminar(g.id)}
+                            className="text-gray-600 hover:text-red-400 text-lg shrink-0 transition"
+                          >×</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Modal nuevo gasto */}
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4">
+            <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-md p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-bold text-lg">Registrar gasto</h2>
+                <button onClick={() => setModal(false)} className="text-gray-500 hover:text-white text-2xl leading-none">×</button>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Descripción *</label>
+                <input
+                  autoFocus
+                  value={form.descripcion}
+                  onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
+                  placeholder="Ej: Detergente, foco, etc."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Monto *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
                   <input
                     type="number"
-                    inputMode="decimal"
-                    value={montoApertura}
-                    onChange={(e) => setMontoApertura(e.target.value)}
-                    placeholder="Monto inicial ($)"
-                    className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
+                    value={form.monto}
+                    onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
+                    placeholder="0"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-7 pr-3 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
                   />
-                  <button
-                    onClick={abrirCaja}
-                    disabled={!montoApertura || guardando}
-                    className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold rounded-xl px-5 py-3 text-sm transition"
-                  >
-                    {guardando ? 'Abriendo...' : 'Abrir caja'}
-                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Caja abierta */}
-            {cajaActual && (
-              <>
-                {/* Métricas */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                  {[
-                    { label: 'Total ventas',       value: `$${totalVentas.toLocaleString()}`,      color: 'text-green-400' },
-                    { label: 'Ventas efectivo',    value: `$${totalEfectivo.toLocaleString()}`,    color: 'text-green-300' },
-                    { label: 'Ventas digital',     value: `$${totalDigital.toLocaleString()}`,     color: 'text-blue-400' },
-                    { label: 'Cantidad ventas',    value: String(cantVentas),                      color: 'text-white' },
-                    { label: 'Gastos',             value: `$${totalGastos.toLocaleString()}`,      color: 'text-red-400' },
-                    { label: 'Efectivo esperado',  value: `$${efectivoEsperado.toLocaleString()}`, color: 'text-violet-400' },
-                  ].map((m) => (
-                    <div key={m.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 mb-1">{m.label}</p>
-                      <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-2 mb-4">
-                  {(['resumen', 'gastos'] as const).map((t) => (
+              <div>
+                <label className="text-gray-400 text-xs block mb-2">Categoría</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CATEGORIAS.map(cat => (
                     <button
-                      key={t}
-                      onClick={() => setTab(t)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition
-                        ${tab === t ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                      key={cat.key}
+                      onClick={() => setForm(f => ({ ...f, categoria: cat.key }))}
+                      className={`py-2 rounded-xl text-xs font-medium transition flex flex-col items-center gap-1
+                        ${form.categoria === cat.key ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                     >
-                      {t === 'resumen' ? 'Cierre' : 'Gastos'}
-                      {t === 'gastos' && gastos.length > 0 && (
-                        <span className="ml-2 bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">{gastos.length}</span>
-                      )}
+                      <span className="text-base">{cat.icon}</span>
+                      {cat.label}
                     </button>
                   ))}
                 </div>
+              </div>
 
-                {/* Cierre */}
-                {tab === 'resumen' && (
-                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-                    <div className="space-y-2 text-sm text-gray-400 pb-4 border-b border-gray-800">
-                      <div className="flex justify-between"><span>Apertura</span><span className="text-white">${Number(cajaActual.monto_apertura).toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span>+ Efectivo vendido</span><span className="text-green-400">+${totalEfectivo.toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span>- Gastos</span><span className="text-red-400">-${totalGastos.toLocaleString()}</span></div>
-                      <div className="flex justify-between font-bold text-white pt-1"><span>Efectivo esperado</span><span className="text-violet-400">${efectivoEsperado.toLocaleString()}</span></div>
-                    </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Fecha</label>
+                <input
+                  type="date"
+                  value={form.fecha}
+                  onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                />
+              </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1.5">Efectivo contado en caja ($)</label>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        value={montoCierre}
-                        onChange={(e) => setMontoCierre(e.target.value)}
-                        placeholder="Contá el efectivo y escribí el total"
-                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
-                      />
-                    </div>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
 
-                    {montoCierre && (
-                      <div className={`rounded-xl p-3 text-sm font-medium ${
-                        Number(montoCierre) - efectivoEsperado === 0 ? 'bg-green-950 text-green-400'
-                        : Number(montoCierre) - efectivoEsperado > 0 ? 'bg-blue-950 text-blue-400'
-                        : 'bg-red-950 text-red-400'
-                      }`}>
-                        Diferencia: ${(Number(montoCierre) - efectivoEsperado).toLocaleString()}
-                        {Number(montoCierre) - efectivoEsperado === 0 && ' ✓ Caja cuadrada'}
-                        {Number(montoCierre) - efectivoEsperado > 0 && ' (sobrante)'}
-                        {Number(montoCierre) - efectivoEsperado < 0 && ' (faltante)'}
-                      </div>
-                    )}
-
-                    <textarea
-                      value={notasCierre}
-                      onChange={(e) => setNotasCierre(e.target.value)}
-                      placeholder="Notas del cierre (opcional)"
-                      rows={2}
-                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500 resize-none"
-                    />
-
-                    <button
-                      onClick={cerrarCaja}
-                      disabled={!montoCierre || guardando}
-                      className="w-full bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white font-semibold rounded-xl py-3 text-sm transition"
-                    >
-                      {guardando ? 'Cerrando...' : 'Cerrar caja'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Gastos */}
-                {tab === 'gastos' && (
-                  <div className="space-y-4">
-                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                      <h3 className="font-bold text-white mb-4">Registrar gasto</h3>
-                      <div className="flex gap-3">
-                        <input
-                          value={formGasto.descripcion}
-                          onChange={(e) => setFormGasto((f) => ({ ...f, descripcion: e.target.value }))}
-                          placeholder="Descripción"
-                          className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
-                        />
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={formGasto.monto}
-                          onChange={(e) => setFormGasto((f) => ({ ...f, monto: e.target.value }))}
-                          placeholder="$"
-                          className="w-24 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-violet-500"
-                        />
-                        <button
-                          onClick={agregarGasto}
-                          disabled={!formGasto.descripcion || !formGasto.monto || guardando}
-                          className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold rounded-xl px-4 py-3 text-sm transition"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-                      {gastos.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-10">Sin gastos registrados</p>
-                      ) : (
-                        <table className="w-full">
-                          <tbody className="divide-y divide-gray-800">
-                            {gastos.map((g) => (
-                              <tr key={g.id}>
-                                <td className="px-5 py-3 text-sm text-white">{g.descripcion}</td>
-                                <td className="px-5 py-3 text-sm font-semibold text-red-400 text-right">-${Number(g.monto).toLocaleString()}</td>
-                              </tr>
-                            ))}
-                            <tr className="bg-gray-800/50">
-                              <td className="px-5 py-3 text-sm font-bold text-white">Total</td>
-                              <td className="px-5 py-3 text-sm font-bold text-red-400 text-right">-${totalGastos.toLocaleString()}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </>
+              <button
+                onClick={guardar}
+                disabled={guardando}
+                className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition"
+              >
+                {guardando ? 'Guardando...' : 'Registrar gasto'}
+              </button>
+            </div>
+          </div>
         )}
+
       </div>
     </RouteGuard>
   )

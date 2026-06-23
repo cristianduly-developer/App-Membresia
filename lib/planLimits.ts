@@ -1,51 +1,108 @@
 export type Plan = 'basico' | 'profesional' | 'premium' | 'sincargo'
 
 export interface PlanLimits {
-  productos: number | null   // null = ilimitado
-  colaboradores: number
-  usaMesas: boolean
-  usaComandas: boolean
-  usaCocina: boolean
-  usaQrPedido: boolean
-  usaDelivery: boolean
+  maxSocios: number | null        // null = ilimitado
+  maxActividades: number | null
+  maxColaboradores: number        // 0 = sin multiusuario
+  usaAptoMedico: boolean
+  usaProfesores: boolean
+  usaLiquidaciones: boolean
+  usaAlertaDesercion: boolean
+  usaReportesAvanzados: boolean
+  usaCierreCaja: boolean
+}
+
+export interface PlanInfo extends PlanLimits {
+  nombre: string
+  precio: number                  // ARS/mes
+}
+
+export const PLAN_INFO: Record<Exclude<Plan, 'sincargo'>, PlanInfo> = {
+  basico: {
+    nombre: 'Básico',
+    precio: 25000,
+    maxSocios: 100,
+    maxActividades: 3,
+    maxColaboradores: 0,
+    usaAptoMedico: false,
+    usaProfesores: false,
+    usaLiquidaciones: false,
+    usaAlertaDesercion: false,
+    usaReportesAvanzados: false,
+    usaCierreCaja: true,
+  },
+  profesional: {
+    nombre: 'Profesional',
+    precio: 35000,
+    maxSocios: 300,
+    maxActividades: null,
+    maxColaboradores: 2,
+    usaAptoMedico: true,
+    usaProfesores: true,
+    usaLiquidaciones: true,
+    usaAlertaDesercion: true,
+    usaReportesAvanzados: false,
+    usaCierreCaja: true,
+  },
+  premium: {
+    nombre: 'Premium',
+    precio: 50000,
+    maxSocios: null,
+    maxActividades: null,
+    maxColaboradores: 5,
+    usaAptoMedico: true,
+    usaProfesores: true,
+    usaLiquidaciones: true,
+    usaAlertaDesercion: true,
+    usaReportesAvanzados: true,
+    usaCierreCaja: true,
+  },
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   basico: {
-    productos: 50,
-    colaboradores: 1,
-    usaMesas: false,
-    usaComandas: false,
-    usaCocina: false,
-    usaQrPedido: true,
-    usaDelivery: true,
+    maxSocios: 100,
+    maxActividades: 3,
+    maxColaboradores: 0,
+    usaAptoMedico: false,
+    usaProfesores: false,
+    usaLiquidaciones: false,
+    usaAlertaDesercion: false,
+    usaReportesAvanzados: false,
+    usaCierreCaja: true,
   },
   profesional: {
-    productos: 150,
-    colaboradores: 3,
-    usaMesas: true,
-    usaComandas: true,
-    usaCocina: true,
-    usaQrPedido: true,
-    usaDelivery: true,
+    maxSocios: 300,
+    maxActividades: null,
+    maxColaboradores: 2,
+    usaAptoMedico: true,
+    usaProfesores: true,
+    usaLiquidaciones: true,
+    usaAlertaDesercion: true,
+    usaReportesAvanzados: false,
+    usaCierreCaja: false,
   },
   premium: {
-    productos: null,
-    colaboradores: 6,
-    usaMesas: true,
-    usaComandas: true,
-    usaCocina: true,
-    usaQrPedido: true,
-    usaDelivery: true,
+    maxSocios: null,
+    maxActividades: null,
+    maxColaboradores: 5,
+    usaAptoMedico: true,
+    usaProfesores: true,
+    usaLiquidaciones: true,
+    usaAlertaDesercion: true,
+    usaReportesAvanzados: true,
+    usaCierreCaja: true,
   },
   sincargo: {
-    productos: null,
-    colaboradores: 6,
-    usaMesas: true,
-    usaComandas: true,
-    usaCocina: true,
-    usaQrPedido: true,
-    usaDelivery: true,
+    maxSocios: null,
+    maxActividades: null,
+    maxColaboradores: 5,
+    usaAptoMedico: true,
+    usaProfesores: true,
+    usaLiquidaciones: true,
+    usaAlertaDesercion: true,
+    usaReportesAvanzados: true,
+    usaCierreCaja: true,
   },
 }
 

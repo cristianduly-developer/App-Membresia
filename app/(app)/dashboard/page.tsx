@@ -1,193 +1,334 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 
-interface Stats {
-  ventasHoy: number
-  ticketPromedio: number
-  mesasOcupadas: number
-  totalMesas: number
-  pedidosPendientes: number
-  cajaAbierta: boolean
+interface DashboardData {
+  sociosActivos: number
+  sociosTotales: number
+  vencenEstaSemana: number
+  vencidas: number
+  cobradoHoy: number
+  cobrosHoy: number
+  asistenciasHoy: number
+  inactivosAlerta: number
+}
+
+interface Pendiente {
+  tipo: 'vence_hoy' | 'vence_semana' | 'vencida' | 'inactivo'
+  socio_id: string
+  nombre: string
+  apellido: string
+  foto_url: string | null
+  detalle: string
+  accion: string
+  accionUrl: string
+}
+
+function diasAtras(n: number) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().split('T')[0]
+}
+function diasAdelante(n: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
 }
 
 export default function DashboardPage() {
-  const { localId, nombreNegocio, nombreUsuario, usaMesas, usaCocina, usaDelivery, usaQr } = useSession()
-  const [stats, setStats] = useState<Stats | null>(null)
+  const { localId, nombreNegocio } = useSession()
+  const router = useRouter()
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [pendientes, setPendientes] = useState<Pendiente[]>([])
   const [loading, setLoading] = useState(true)
+
+  const hoy = new Date().toISOString().split('T')[0]
+  const horaActual = new Date().getHours()
+  const saludo = horaActual < 12 ? 'Buenos días' : horaActual < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   useEffect(() => {
     if (!localId) return
-    cargarStats()
-
-    const onFocus = () => cargarStats()
-    const onVisible = () => { if (document.visibilityState === 'visible') cargarStats() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisible)
-
-    const channel = supabaseApp
-      .channel('dashboard-caja')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'caja', filter: `local_id=eq.${localId}` }, cargarStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas', filter: `local_id=eq.${localId}` }, cargarStats)
-      .subscribe()
-
-    return () => {
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisible)
-      supabaseApp.removeChannel(channel)
-    }
+    cargar()
   }, [localId])
 
-  const cargarStats = async () => {
-    const hoyInicio = new Date()
-    hoyInicio.setHours(0, 0, 0, 0)
+  const cargar = async () => {
+    setLoading(true)
 
     const [
-      { data: ventas },
-      { data: mesas },
-      { data: items },
-      { data: caja },
+      { data: membresias },
+      { data: cobrosHoy },
+      { data: asistenciasHoy },
     ] = await Promise.all([
-      supabaseApp
-        .from('ventas')
-        .select('total')
-        .eq('local_id', localId)
-        .gte('created_at', hoyInicio.toISOString()),
-      supabaseApp
-        .from('mesas')
-        .select('estado')
-        .eq('local_id', localId)
-        .eq('activo', true),
-      supabaseApp
-        .from('items_comanda')
-        .select('id, comandas!inner(local_id)')
-        .eq('comandas.local_id', localId)
-        .in('estado', ['pendiente', 'en_preparacion']),
-      supabaseApp
-        .from('caja')
-        .select('id')
-        .eq('local_id', localId)
-        .eq('estado', 'abierta')
-        .maybeSingle(),
+      supabaseApp.from('membresias').select('socio_id, estado, fecha_vencimiento, socios(id, nombre, apellido, foto_url)').eq('org_id', localId),
+      supabaseApp.from('cobros').select('monto').eq('org_id', localId).eq('estado', 'pagado').eq('fecha_pago', hoy),
+      supabaseApp.from('asistencias').select('id').eq('org_id', localId).eq('fecha', hoy),
     ])
 
-    const totalVentas = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0)
-    const cantVentas = ventas?.length ?? 0
-    const mesasOcupadas = (mesas ?? []).filter((m) => m.estado !== 'libre').length
+    const semanaProx = diasAdelante(7)
 
-    setStats({
-      ventasHoy: totalVentas,
-      ticketPromedio: cantVentas > 0 ? Math.round(totalVentas / cantVentas) : 0,
-      mesasOcupadas,
-      totalMesas: mesas?.length ?? 0,
-      pedidosPendientes: items?.length ?? 0,
-      cajaAbierta: !!caja,
+    let sociosActivos = 0
+    let vencenEstaSemana = 0
+    let vencidas = 0
+    const pendientesArr: Pendiente[] = []
+    const sociosVistos = new Set<string>()
+
+    ;(membresias ?? []).forEach((m: any) => {
+      const socio = m.socios
+      if (!socio || sociosVistos.has(socio.id)) return
+      sociosVistos.add(socio.id)
+
+      const diff = Math.ceil((new Date(m.fecha_vencimiento).getTime() - Date.now()) / 86400000)
+
+      if (m.estado === 'activa' || m.estado === 'proxima_vencer') {
+        sociosActivos++
+        if (diff <= 0) {
+          vencidas++
+          pendientesArr.push({
+            tipo: 'vencida',
+            socio_id: socio.id,
+            nombre: socio.nombre,
+            apellido: socio.apellido,
+            foto_url: socio.foto_url,
+            detalle: `Membresía vencida hace ${Math.abs(diff)}d`,
+            accion: 'Cobrar',
+            accionUrl: `/cobros/nuevo?socio=${socio.id}`,
+          })
+        } else if (diff === 0) {
+          vencenEstaSemana++
+          pendientesArr.push({
+            tipo: 'vence_hoy',
+            socio_id: socio.id,
+            nombre: socio.nombre,
+            apellido: socio.apellido,
+            foto_url: socio.foto_url,
+            detalle: 'Membresía vence HOY',
+            accion: 'Renovar',
+            accionUrl: `/cobros/nuevo?socio=${socio.id}`,
+          })
+        } else if (diff <= 7) {
+          vencenEstaSemana++
+          pendientesArr.push({
+            tipo: 'vence_semana',
+            socio_id: socio.id,
+            nombre: socio.nombre,
+            apellido: socio.apellido,
+            foto_url: socio.foto_url,
+            detalle: `Vence en ${diff} días`,
+            accion: 'Ver',
+            accionUrl: `/socios/${socio.id}`,
+          })
+        }
+      }
     })
+
+    // Anti-churn: socios activos sin asistencia en 15 días
+    const { data: ultimasAsist } = await supabaseApp
+      .from('asistencias')
+      .select('socio_id, fecha')
+      .eq('org_id', localId)
+      .gte('fecha', diasAtras(15))
+
+    const asistReciente = new Set((ultimasAsist ?? []).map(a => a.socio_id))
+
+    let inactivosAlerta = 0
+    ;(membresias ?? []).forEach((m: any) => {
+      const socio = m.socios
+      if (!socio) return
+      if ((m.estado === 'activa' || m.estado === 'proxima_vencer') && !asistReciente.has(socio.id)) {
+        inactivosAlerta++
+        if (pendientesArr.length < 20) {
+          pendientesArr.push({
+            tipo: 'inactivo',
+            socio_id: socio.id,
+            nombre: socio.nombre,
+            apellido: socio.apellido,
+            foto_url: socio.foto_url,
+            detalle: 'Sin asistencia en 15+ días',
+            accion: 'Ver',
+            accionUrl: `/socios/${socio.id}`,
+          })
+        }
+      }
+    })
+
+    // Ordenar: vence_hoy → vencida → vence_semana → inactivo
+    const orden: Record<string, number> = { vence_hoy: 0, vencida: 1, vence_semana: 2, inactivo: 3 }
+    pendientesArr.sort((a, b) => orden[a.tipo] - orden[b.tipo])
+
+    const cobradoHoy = (cobrosHoy ?? []).reduce((s: number, c: any) => s + c.monto, 0)
+
+    setData({
+      sociosActivos,
+      sociosTotales: sociosVistos.size,
+      vencenEstaSemana: vencenEstaSemana,
+      vencidas,
+      cobradoHoy,
+      cobrosHoy: cobrosHoy?.length ?? 0,
+      asistenciasHoy: asistenciasHoy?.length ?? 0,
+      inactivosAlerta,
+    })
+    setPendientes(pendientesArr)
     setLoading(false)
   }
 
-  const hora = new Date().getHours()
-  const saludo = hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches'
+  const tipoBadge: Record<string, { bg: string; text: string; icon: string }> = {
+    vence_hoy: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', icon: '⚡' },
+    vencida: { bg: 'bg-red-500/20', text: 'text-red-400', icon: '🚫' },
+    vence_semana: { bg: 'bg-orange-500/20', text: 'text-orange-400', icon: '⏰' },
+    inactivo: { bg: 'bg-gray-500/20', text: 'text-gray-400', icon: '💤' },
+  }
 
   return (
     <RouteGuard permiso="verDashboard">
-      <div>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">{saludo}, {nombreUsuario?.split(' ')[0] || 'bienvenido'} 👋</h1>
-          <p className="text-gray-400 text-sm mt-1">{nombreNegocio || 'GastroApp'} — resumen de hoy</p>
+      <div className="max-w-2xl mx-auto">
+
+        {/* Saludo */}
+        <div className="mb-6">
+          <p className="text-gray-500 text-sm">{saludo}</p>
+          <h1 className="text-2xl font-bold text-white">{nombreNegocio ?? 'Mi negocio'}</h1>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : stats && (
+        ) : data && (
           <>
-            {/* Métricas principales */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <MetricCard label="Ventas hoy"      value={`$${stats.ventasHoy.toLocaleString()}`}       emoji="💰" color="violet" />
-              <MetricCard label="Ticket promedio" value={`$${stats.ticketPromedio.toLocaleString()}`}  emoji="🧾" color="blue" />
-              {usaMesas && <MetricCard label="Mesas ocupadas"    value={`${stats.mesasOcupadas} / ${stats.totalMesas}`} emoji="🪑" color="green" />}
-              {usaCocina && <MetricCard label="Pedidos en cocina" value={String(stats.pedidosPendientes)} emoji="👨‍🍳" color={stats.pedidosPendientes > 5 ? 'red' : 'gray'} />}
+            {/* Métricas del día */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 text-center">
+                <p className="text-green-400 text-2xl font-bold">${data.cobradoHoy > 0 ? (data.cobradoHoy / 1000).toFixed(1) + 'k' : '0'}</p>
+                <p className="text-gray-500 text-xs mt-0.5">cobrado hoy</p>
+              </div>
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 text-center">
+                <p className="text-violet-400 text-2xl font-bold">{data.asistenciasHoy}</p>
+                <p className="text-gray-500 text-xs mt-0.5">presentes hoy</p>
+              </div>
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 text-center">
+                <p className="text-white text-2xl font-bold">{data.sociosActivos}</p>
+                <p className="text-gray-500 text-xs mt-0.5">socios activos</p>
+              </div>
             </div>
 
-            {/* Alertas */}
-            {!stats.cajaAbierta && (
-              <div className="bg-amber-950/40 border border-amber-800 rounded-2xl p-4 mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🏧</span>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-300">Caja sin abrir</p>
-                    <p className="text-xs text-amber-500">Abrí la caja antes de empezar a vender</p>
-                  </div>
-                </div>
-                <Link href="/caja" className="text-xs font-semibold text-amber-300 hover:text-amber-200 transition">Abrir →</Link>
-              </div>
-            )}
-
-            {usaCocina && stats.pedidosPendientes > 0 && (
-              <div className="bg-blue-950/40 border border-blue-800 rounded-2xl p-4 mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">⏳</span>
-                  <div>
-                    <p className="text-sm font-semibold text-blue-300">
-                      {stats.pedidosPendientes} {stats.pedidosPendientes === 1 ? 'pedido pendiente' : 'pedidos pendientes'} en cocina
-                    </p>
-                    <p className="text-xs text-blue-500">Revisá el monitor de cocina</p>
-                  </div>
-                </div>
-                <Link href="/cocina" className="text-xs font-semibold text-blue-300 hover:text-blue-200 transition">Ver →</Link>
+            {/* Alertas resumen */}
+            {(data.vencidas > 0 || data[vencenEstaSemana] > 0 || data.inactivosAlerta > 0) && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {data.vencidas > 0 && (
+                  <button
+                    onClick={() => router.push('/membresias?filtro=vencida')}
+                    className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center hover:bg-red-500/20 transition"
+                  >
+                    <p className="text-red-400 text-xl font-bold">{data.vencidas}</p>
+                    <p className="text-red-400/70 text-xs">vencidas</p>
+                  </button>
+                )}
+                {data[vencenEstaSemana] > 0 && (
+                  <button
+                    onClick={() => router.push('/membresias?filtro=proxima_vencer')}
+                    className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-center hover:bg-yellow-500/20 transition"
+                  >
+                    <p className="text-yellow-400 text-xl font-bold">{data[vencenEstaSemana]}</p>
+                    <p className="text-yellow-400/70 text-xs">por vencer</p>
+                  </button>
+                )}
+                {data.inactivosAlerta > 0 && (
+                  <button
+                    onClick={() => router.push('/asistencias')}
+                    className="bg-gray-500/10 border border-gray-500/30 rounded-xl p-3 text-center hover:bg-gray-500/20 transition"
+                  >
+                    <p className="text-gray-400 text-xl font-bold">{data.inactivosAlerta}</p>
+                    <p className="text-gray-400/70 text-xs">inactivos</p>
+                  </button>
+                )}
               </div>
             )}
 
             {/* Accesos rápidos */}
-            <div>
-              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Accesos rápidos</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  { href: '/ventas',    emoji: '💰', label: 'Nueva venta',  show: true },
-                  { href: '/mesas',     emoji: '🪑', label: 'Ver mesas',    show: usaMesas },
-                  { href: '/cocina',    emoji: '👨‍🍳', label: 'Cocina',       show: usaCocina },
-                  { href: '/delivery',  emoji: '🛵', label: 'Delivery',     show: usaDelivery },
-                  { href: '/pedidos',   emoji: '📋', label: 'Pedidos QR',   show: usaQr },
-                  { href: '/caja',      emoji: '🏧', label: 'Caja',         show: true },
-                  { href: '/productos', emoji: '🍔', label: 'Productos',    show: true },
-                  { href: '/clientes',  emoji: '👥', label: 'Clientes',     show: true },
-                ].filter((a) => a.show).map((a) => (
-                  <Link
-                    key={a.href}
-                    href={a.href}
-                    className="bg-gray-900 border border-gray-800 hover:border-violet-600 rounded-2xl p-4 flex items-center gap-3 transition hover:scale-[1.02]"
-                  >
-                    <span className="text-2xl">{a.emoji}</span>
-                    <span className="text-sm font-medium text-white">{a.label}</span>
-                  </Link>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              <button
+                onClick={() => router.push('/checkin')}
+                className="bg-violet-600 hover:bg-violet-500 text-white rounded-2xl p-4 flex items-center gap-3 transition"
+              >
+                <span className="text-3xl">📱</span>
+                <div className="text-left">
+                  <p className="font-bold">Check-in</p>
+                  <p className="text-violet-300 text-xs">Escanear QR</p>
+                </div>
+              </button>
+              <button
+                onClick={() => router.push('/cobros/nuevo')}
+                className="bg-gray-800 hover:bg-gray-700 text-white rounded-2xl p-4 flex items-center gap-3 transition"
+              >
+                <span className="text-3xl">💰</span>
+                <div className="text-left">
+                  <p className="font-bold">Cobrar</p>
+                  <p className="text-gray-400 text-xs">Registrar pago</p>
+                </div>
+              </button>
             </div>
+
+            {/* Bandeja de pendientes */}
+            {pendientes.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-white font-semibold">Pendientes del día</h2>
+                  <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {pendientes.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {pendientes.map((p, i) => {
+                    const badge = tipoBadge[p.tipo]
+                    return (
+                      <div key={`${p.socio_id}-${p.tipo}-${i}`} className="bg-gray-900 border border-gray-800 rounded-2xl p-3 flex items-center gap-3">
+                        {/* Avatar */}
+                        <button
+                          onClick={() => router.push(`/socios/${p.socio_id}`)}
+                          className="w-10 h-10 rounded-full bg-violet-900 flex items-center justify-center shrink-0 overflow-hidden"
+                        >
+                          {p.foto_url
+                            ? <img src={p.foto_url} alt="" className="w-full h-full object-cover" />
+                            : <span className="text-violet-300 font-bold text-sm">{p.nombre[0]}{p.apellido[0]}</span>
+                          }
+                        </button>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{p.apellido}, {p.nombre}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-sm">{badge.icon}</span>
+                            <p className={`text-xs ${badge.text}`}>{p.detalle}</p>
+                          </div>
+                        </div>
+
+                        {/* CTA */}
+                        <button
+                          onClick={() => router.push(p.accionUrl)}
+                          className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${badge.bg} ${badge.text} hover:opacity-80`}
+                        >
+                          {p.accion}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {pendientes.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">🎉</div>
+                <p className="text-gray-400 font-medium">Todo al día</p>
+                <p className="text-gray-600 text-sm mt-1">Sin pendientes para hoy</p>
+              </div>
+            )}
           </>
         )}
+
       </div>
     </RouteGuard>
-  )
-}
-
-function MetricCard({ label, value, emoji, color }: { label: string; value: string; emoji: string; color: string }) {
-  const colors: Record<string, string> = {
-    violet: 'bg-violet-950/50 border-violet-800',
-    blue:   'bg-blue-950/50 border-blue-800',
-    green:  'bg-green-950/50 border-green-800',
-    red:    'bg-red-950/50 border-red-800',
-    gray:   'bg-gray-900 border-gray-800',
-  }
-  return (
-    <div className={`${colors[color] ?? colors.gray} border rounded-2xl p-4`}>
-      <p className="text-2xl mb-2">{emoji}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
-    </div>
   )
 }

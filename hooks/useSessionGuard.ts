@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 import { getPermisos, type RolSistema } from '@/lib/permisos'
 import { type Plan } from '@/lib/planLimits'
+import { type RubroOrg } from '@/lib/sessionStore'
 
 export function useSessionGuard() {
   const { setSession, clearSession, setHydrated } = useSession()
@@ -24,37 +25,22 @@ export function useSessionGuard() {
       const localId: string | null = meta.local_id ?? null
       const plan: Plan | null = meta.plan ?? null
       const isOwner: boolean = meta.is_owner ?? true
-      const rolSistema: RolSistema = isOwner ? 'owner' : (meta.rol ?? 'cajero')
+      const rolSistema: RolSistema = isOwner ? 'owner' : (meta.rol ?? 'recepcionista')
 
-      // Si es mozo, cargar sus mesas asignadas
-      let mesasAsignadas: string[] | null = null
-      if (!isOwner && rolSistema === 'mozo' && localId && session.user.email) {
-        const { data: colab } = await supabaseApp
-          .from('colaboradores')
-          .select('mesas_asignadas')
-          .eq('email', session.user.email.toLowerCase())
-          .eq('local_id', localId)
-          .maybeSingle()
-        mesasAsignadas = colab?.mesas_asignadas ?? null
-      }
-
-      // Cargar flags de config del local
-      let usaMesas = false, usaDelivery = false, usaCocina = false, usaQr = false
       let nombreNegocio: string | null = null
       let onboardingCompleto = false
+      let rubroOrg: RubroOrg | null = null
+
       if (localId) {
         const { data: cfg } = await supabaseApp
-          .from('config_local')
-          .select('nombre_negocio, onboarding_completo, usa_mesas, usa_delivery, usa_cocina, usa_qr')
-          .eq('local_id', localId)
+          .from('config_org')
+          .select('nombre_negocio, onboarding_completo, rubro')
+          .eq('org_id', localId)
           .maybeSingle()
         if (cfg) {
           nombreNegocio = cfg.nombre_negocio ?? null
           onboardingCompleto = cfg.onboarding_completo ?? false
-          usaMesas = cfg.usa_mesas ?? false
-          usaDelivery = cfg.usa_delivery ?? false
-          usaCocina = cfg.usa_cocina ?? false
-          usaQr = cfg.usa_qr ?? false
+          rubroOrg = cfg.rubro ?? null
         }
       }
 
@@ -63,14 +49,10 @@ export function useSessionGuard() {
         plan,
         nombreNegocio,
         onboardingCompleto,
+        rubroOrg,
         rol: isOwner ? 'owner' : 'colaborador',
         rolSistema,
         permisos: getPermisos(rolSistema),
-        mesasAsignadas,
-        usaMesas,
-        usaDelivery,
-        usaCocina,
-        usaQr,
         _hydrated: true,
       })
       setHydrated()
@@ -78,7 +60,6 @@ export function useSessionGuard() {
 
     syncSession()
 
-    // Re-verificar cada 5 minutos (plan, estado suscripción, permisos)
     const interval = setInterval(syncSession, 5 * 60 * 1000)
 
     const { data: { subscription } } = supabaseApp.auth.onAuthStateChange((event) => {

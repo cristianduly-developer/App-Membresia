@@ -8,7 +8,7 @@ import { type Plan } from '@/lib/planLimits'
 
 const PLAN_MAP: Record<string, Plan> = {
   basico: 'basico',
-  profesional: 'premium',
+  profesional: 'profesional',
   premium: 'premium',
 }
 
@@ -26,20 +26,20 @@ function PantallaRegistro({ onRegistrar, onLogout, registrando, error }: {
       <div className="w-full max-w-sm flex flex-col gap-5">
         <div className="flex flex-col items-center gap-3">
           <div className="w-20 h-20 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-4xl">🍽️</span>
+            <span className="text-4xl">🏋️</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Probá GastroApp</h1>
+          <h1 className="text-2xl font-bold text-white">Probá SocioApp</h1>
           <p className="text-gray-400 text-sm">28 días gratis, sin tarjeta de crédito</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col gap-3">
           {[
-            '🍽️ Gestión de mesas y pedidos en tiempo real',
-            '👨‍🍳 Comandas a cocina desde la mesa',
-            '📱 Menú QR para los clientes',
-            '🛵 Módulo de delivery integrado',
-            '📊 Reportes de ventas y productos',
-            '👥 Múltiples mozos y roles',
+            '👥 Socios, membresías y cobros en un solo lugar',
+            '📲 Check-in con QR — rápido y sin papel',
+            '💰 Cobrá en 2 clics desde la ficha del socio',
+            '⚠️ Alerta cuando un socio deja de venir',
+            '👨‍🏫 Liquidación automática de profesores',
+            '📊 Rentabilidad real de tu negocio',
           ].map(b => (
             <div key={b} className="text-sm text-gray-300">{b}</div>
           ))}
@@ -80,21 +80,21 @@ function PantallaDemoVencido({ onLogout }: { onLogout: () => void }) {
         <div className="text-6xl">⏰</div>
         <h1 className="text-2xl font-bold text-white">Tu prueba gratuita terminó</h1>
         <p className="text-gray-400 text-sm leading-relaxed">
-          Usaste los 28 días de prueba de GastroApp.<br />
+          Usaste los 28 días de prueba de SocioApp.<br />
           Para seguir usando la app, activá tu cuenta.
         </p>
         <div className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col gap-3">
           {[
-            '🍽️ Pedidos y mesas sin límite',
-            '👨‍🍳 Comandas a cocina en tiempo real',
-            '📱 Menú QR para clientes',
-            '🛵 Delivery integrado',
+            '👥 Socios y membresías sin límite',
+            '💰 Cobros y morosidad bajo control',
+            '📲 Check-in con QR para tus socios',
+            '📊 Rentabilidad real de tu negocio',
           ].map(b => (
             <div key={b} className="text-sm text-gray-300 text-left">{b}</div>
           ))}
         </div>
         <a
-          href={`${WA_LINK}?text=Hola!%20Quiero%20activar%20mi%20cuenta%20de%20GastroApp`}
+          href={`${WA_LINK}?text=Hola!%20Quiero%20activar%20mi%20cuenta%20de%20SocioApp`}
           target="_blank" rel="noopener noreferrer"
           className="w-full py-4 rounded-2xl text-white font-bold flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 transition-all"
         >
@@ -120,7 +120,7 @@ function PantallaSuspendida({ onLogout }: { onLogout: () => void }) {
           Contactá al administrador para regularizar tu situación.
         </p>
         <a
-          href={`${WA_LINK}?text=Hola!%20Mi%20cuenta%20de%20GastroApp%20está%20suspendida`}
+          href={`${WA_LINK}?text=Hola!%20Mi%20cuenta%20de%20SocioApp%20está%20suspendida`}
           target="_blank" rel="noopener noreferrer"
           className="w-full py-4 rounded-2xl text-white font-bold flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 transition-all"
         >
@@ -254,18 +254,13 @@ export default function LoginPage() {
       })
 
       const { data: config } = await supabaseApp
-        .from('config_local')
-        .select('onboarding_completo, usa_mesas, usa_delivery, usa_cocina, usa_qr')
-        .eq('local_id', localId)
+        .from('config_org')
+        .select('onboarding_completo, rubro')
+        .eq('org_id', localId)
         .maybeSingle()
 
-      if (config) {
-        setSession({
-          usaMesas:    config.usa_mesas    ?? false,
-          usaDelivery: config.usa_delivery ?? false,
-          usaCocina:   config.usa_cocina   ?? false,
-          usaQr:       config.usa_qr       ?? false,
-        })
+      if (config?.rubro) {
+        setSession({ rubroOrg: config.rubro })
       }
 
       if (!config?.onboarding_completo) {
@@ -345,10 +340,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-10">
           <div className="w-20 h-20 bg-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <span className="text-4xl">🍽️</span>
+            <span className="text-4xl">🏋️</span>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">GastroApp</h1>
-          <p className="text-gray-400 text-sm mt-1">Sistema de gestión gastronómica</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">SocioApp</h1>
+          <p className="text-gray-400 text-sm mt-1">Gestión de socios y membresías</p>
         </div>
 
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-xl">

@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       .from('suscripciones_apps')
       .select('estado')
       .eq('org_id', empData[0].org_id)
-      .eq('app_id', 'app-gastronomia')
+      .eq('app_id', 'app-membresias')
       .in('estado', ['suspendido', 'impago'])
       .limit(1)
       .maybeSingle()

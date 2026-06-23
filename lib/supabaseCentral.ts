@@ -19,7 +19,7 @@ export async function verificarAcceso(email: string): Promise<AccesoResult | nul
 
   const { data, error } = await client.rpc('verificar_acceso_email', {
     email_param: email,
-    app_id_param: 'app-gastronomia',
+    app_id_param: 'app-membresias',
   })
 
   if (error) return null

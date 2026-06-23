@@ -5,22 +5,28 @@ import { type Plan } from './planLimits'
 
 export type EstadoSuscripcion = 'activo' | 'demo' | 'impago' | 'suspendido'
 
+export type RubroOrg =
+  | 'gimnasio'
+  | 'futbol'
+  | 'danza'
+  | 'natatorio'
+  | 'artes_marciales'
+  | 'tenis'
+  | 'cultural'
+  | 'otro'
+
 interface SessionData {
   localId: string | null
   plan: Plan | null
   nombreNegocio: string | null
   nombreUsuario: string | null
+  rubroOrg: RubroOrg | null
   rol: 'owner' | 'colaborador' | null
   rolSistema: RolSistema | null
   permisos: Permisos | null
   estadoSuscripcion: EstadoSuscripcion | null
   diasRestantes: number | null
   onboardingCompleto: boolean
-  mesasAsignadas: string[] | null
-  usaMesas: boolean
-  usaDelivery: boolean
-  usaCocina: boolean
-  usaQr: boolean
   _hydrated: boolean
 }
 
@@ -35,17 +41,13 @@ const initialState: SessionData = {
   plan: null,
   nombreNegocio: null,
   nombreUsuario: null,
+  rubroOrg: null,
   rol: null,
   rolSistema: null,
   permisos: null,
   estadoSuscripcion: null,
   diasRestantes: null,
   onboardingCompleto: false,
-  mesasAsignadas: null,
-  usaMesas: false,
-  usaDelivery: false,
-  usaCocina: false,
-  usaQr: false,
   _hydrated: false,
 }
 
@@ -66,22 +68,18 @@ export const useSession = create<SessionData & SessionActions>()(
       setHydrated: () => set({ _hydrated: true }),
     }),
     {
-      name: 'gastro-session',
+      name: 'membresias-session',
       partialize: (state) => ({
         localId: state.localId,
         plan: state.plan,
         nombreNegocio: state.nombreNegocio,
         nombreUsuario: state.nombreUsuario,
+        rubroOrg: state.rubroOrg,
         rol: state.rol,
         rolSistema: state.rolSistema,
         estadoSuscripcion: state.estadoSuscripcion,
         diasRestantes: state.diasRestantes,
         onboardingCompleto: state.onboardingCompleto,
-        mesasAsignadas: state.mesasAsignadas,
-        usaMesas: state.usaMesas,
-        usaDelivery: state.usaDelivery,
-        usaCocina: state.usaCocina,
-        usaQr: state.usaQr,
       }),
     }
   )

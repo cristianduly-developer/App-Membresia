@@ -1,17 +1,22 @@
-export type RolSistema = 'owner' | 'cajero' | 'mozo' | 'cocina'
+export type RolSistema = 'owner' | 'recepcionista' | 'profesor'
 
 export interface Permisos {
   verDashboard: boolean
-  verVentas: boolean
-  crearVentas: boolean
-  verMesas: boolean
-  verComandas: boolean
-  crearComandas: boolean
-  verCocina: boolean
-  verDelivery: boolean
-  verClientes: boolean
+  verSocios: boolean
+  editarSocios: boolean
+  verActividades: boolean
+  editarActividades: boolean
+  verMembresias: boolean
+  editarMembresias: boolean
+  verCobros: boolean
+  registrarCobros: boolean
+  verCheckin: boolean
+  verAsistencias: boolean
+  verProfesores: boolean
+  editarProfesores: boolean
+  verLiquidaciones: boolean
   verCaja: boolean
-  verProductos: boolean
+  verRentabilidad: boolean
   verConfig: boolean
   verColaboradores: boolean
   verReportes: boolean
@@ -20,64 +25,63 @@ export interface Permisos {
 const PERMISOS_POR_ROL: Record<RolSistema, Permisos> = {
   owner: {
     verDashboard: true,
-    verVentas: true,
-    crearVentas: true,
-    verMesas: true,
-    verComandas: true,
-    crearComandas: true,
-    verCocina: true,
-    verDelivery: true,
-    verClientes: true,
+    verSocios: true,
+    editarSocios: true,
+    verActividades: true,
+    editarActividades: true,
+    verMembresias: true,
+    editarMembresias: true,
+    verCobros: true,
+    registrarCobros: true,
+    verCheckin: true,
+    verAsistencias: true,
+    verProfesores: true,
+    editarProfesores: true,
+    verLiquidaciones: true,
     verCaja: true,
-    verProductos: true,
+    verRentabilidad: true,
     verConfig: true,
     verColaboradores: true,
     verReportes: true,
   },
-  cajero: {
+  recepcionista: {
     verDashboard: true,
-    verVentas: true,
-    crearVentas: true,
-    verMesas: false,
-    verComandas: false,
-    crearComandas: false,
-    verCocina: false,
-    verDelivery: true,
-    verClientes: true,
-    verCaja: true,
-    verProductos: false,
+    verSocios: true,
+    editarSocios: false,
+    verActividades: true,
+    editarActividades: false,
+    verMembresias: true,
+    editarMembresias: false,
+    verCobros: true,
+    registrarCobros: true,
+    verCheckin: true,
+    verAsistencias: true,
+    verProfesores: false,
+    editarProfesores: false,
+    verLiquidaciones: false,
+    verCaja: false,
+    verRentabilidad: false,
     verConfig: false,
     verColaboradores: false,
     verReportes: false,
   },
-  mozo: {
+  profesor: {
     verDashboard: false,
-    verVentas: false,
-    crearVentas: false,
-    verMesas: true,
-    verComandas: true,
-    crearComandas: true,
-    verCocina: false,
-    verDelivery: true,
-    verClientes: false,
+    verSocios: false,
+    editarSocios: false,
+    verActividades: true,
+    editarActividades: false,
+    verMembresias: false,
+    editarMembresias: false,
+    verCobros: false,
+    registrarCobros: false,
+    verCheckin: false,
+    verAsistencias: true,
+    verProfesores: false,
+    editarProfesores: false,
+    verLiquidaciones: true,
     verCaja: false,
-    verProductos: false,
-    verConfig: false,
-    verColaboradores: false,
-    verReportes: false,
-  },
-  cocina: {
-    verDashboard: false,
-    verVentas: false,
-    crearVentas: false,
-    verMesas: false,
-    verComandas: false,
-    crearComandas: false,
-    verCocina: true,
-    verDelivery: false,
-    verClientes: false,
-    verCaja: false,
-    verProductos: false,
+    verRentabilidad: false,
     verConfig: false,
     verColaboradores: false,
     verReportes: false,

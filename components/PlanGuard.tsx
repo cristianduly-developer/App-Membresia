@@ -1,22 +1,24 @@
 'use client'
 import { useSession } from '@/lib/sessionStore'
-import { usePlan } from '@/hooks/usePlan'
+import { getLimites } from '@/lib/planLimits'
 import type { PlanLimits } from '@/lib/planLimits'
 
 const FEATURE_LABELS: Partial<Record<keyof PlanLimits, string>> = {
-  usaMesas:    'Gestión de mesas y salón',
-  usaComandas: 'Comandas',
-  usaCocina:   'Monitor de cocina',
-  usaQrPedido: 'Pedidos desde QR',
-  usaDelivery: 'Delivery',
+  usaAptoMedico:        'Control de apto médico',
+  usaProfesores:        'Gestión de profesores',
+  usaLiquidaciones:     'Liquidación automática',
+  usaAlertaDesercion:   'Alerta de deserción',
+  usaReportesAvanzados: 'Reportes avanzados',
+  usaCierreCaja:        'Cierre de caja',
 }
 
 const UPGRADE_PLAN: Partial<Record<keyof PlanLimits, string>> = {
-  usaMesas:    'Profesional',
-  usaComandas: 'Profesional',
-  usaCocina:   'Profesional',
-  usaQrPedido: 'Profesional',
-  usaDelivery: 'Básico',
+  usaAptoMedico:        'Profesional',
+  usaProfesores:        'Profesional',
+  usaLiquidaciones:     'Profesional',
+  usaAlertaDesercion:   'Profesional',
+  usaReportesAvanzados: 'Premium',
+  usaCierreCaja:        'Premium',
 }
 
 interface Props {
@@ -26,8 +28,9 @@ interface Props {
 
 export function PlanGuard({ feature, children }: Props) {
   const { plan } = useSession()
-  const limites = usePlan()
-  const tieneAcceso = limites[feature] as boolean
+  const limites = getLimites(plan)
+  const valor = limites[feature]
+  const tieneAcceso = typeof valor === 'boolean' ? valor : (valor === null || (typeof valor === 'number' && valor > 0))
 
   if (tieneAcceso) return <>{children}</>
 
