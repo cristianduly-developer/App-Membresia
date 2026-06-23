@@ -1,7 +1,7 @@
 {
-  "name": "GastroApp",
-  "short_name": "GastroApp",
-  "description": "Sistema de gestión gastronómica",
+  "name": "App-Membresia",
+  "short_name": "Membresia",
+  "description": "Gestión de socios y membresías",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#030712",
