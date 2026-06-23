@@ -120,7 +120,7 @@ export default function CheckinPage() {
         socio_id: socioId,
         actividad_id: membresia?.actividades_ids?.[0] ?? null,
         fecha: hoy,
-        metodo_checkin: 'qr',
+        modo: 'qr',
       })
     }
 

@@ -85,6 +85,11 @@ export async function POST(req: NextRequest) {
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 })
   }
+  const token = authHeader.slice(7)
+  const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(token)
+  if (userErr || !user) {
+    return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 })
+  }
 
   const { org_id, rubro } = await req.json()
   if (!org_id || !rubro) {
@@ -93,6 +98,13 @@ export async function POST(req: NextRequest) {
 
   const actividadesTemplate = ACTIVIDADES_POR_RUBRO[rubro] ?? ACTIVIDADES_POR_RUBRO.otro
   const profesoresTemplate  = PROFESORES_POR_RUBRO[rubro]  ?? PROFESORES_POR_RUBRO.otro
+
+  // Idempotencia: si ya hay socios para esta org, no generar de nuevo
+  const { count } = await supabaseAdmin
+    .from('socios')
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', org_id)
+  if ((count ?? 0) > 0) return NextResponse.json({ ok: true, ya_existe: true })
 
   // 1. Crear profesores
   const { data: profesores } = await supabaseAdmin
@@ -158,10 +170,9 @@ export async function POST(req: NextRequest) {
     socio_id: socioId,
     membresia_id: membresias?.[i]?.id ?? null,
     monto: i % 3 === 0 ? 18000 : 8000,
-    metodo: ['efectivo','transferencia','debito'][i % 3],
-    estado: i === 1 ? 'vencido' : i === 4 ? 'pendiente' : 'pagado',
-    fecha_pago: i === 1 || i === 4 ? null : diasAtras(i * 3),
-    fecha_vencimiento: estadosMembresia[i % estadosMembresia.length].fin,
+    metodo_pago: ['efectivo','transferencia','debito'][i % 3],
+    estado: 'cobrado',
+    fecha: diasAtras(i * 3),
     concepto: 'Cuota mensual',
   }))
 
@@ -182,7 +193,7 @@ export async function POST(req: NextRequest) {
           socio_id: socioId,
           actividad_id: actIds[i % actIds.length] ?? null,
           fecha,
-          metodo_checkin: dia < 3 ? 'qr' : 'manual',
+          modo: dia < 3 ? 'qr' : 'manual',
         })
       }
     })

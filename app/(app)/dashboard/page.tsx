@@ -214,7 +214,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Alertas resumen */}
-            {(data.vencidas > 0 || data[vencenEstaSemana] > 0 || data.inactivosAlerta > 0) && (
+            {(data.vencidas > 0 || data.vencenEstaSemana > 0 || data.inactivosAlerta > 0) && (
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {data.vencidas > 0 && (
                   <button
@@ -225,12 +225,12 @@ export default function DashboardPage() {
                     <p className="text-red-400/70 text-xs">vencidas</p>
                   </button>
                 )}
-                {data[vencenEstaSemana] > 0 && (
+                {data.vencenEstaSemana > 0 && (
                   <button
                     onClick={() => router.push('/membresias?filtro=proxima_vencer')}
                     className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-center hover:bg-yellow-500/20 transition"
                   >
-                    <p className="text-yellow-400 text-xl font-bold">{data[vencenEstaSemana]}</p>
+                    <p className="text-yellow-400 text-xl font-bold">{data.vencenEstaSemana}</p>
                     <p className="text-yellow-400/70 text-xs">por vencer</p>
                   </button>
                 )}

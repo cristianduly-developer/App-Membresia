@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   // Verificar si es colaborador
   const { data: colab } = await supabaseAdmin
     .from('colaboradores')
-    .select('local_id, rol, mesas_asignadas')
+    .select('org_id, rol')
     .eq('email', email.toLowerCase())
     .eq('activo', true)
     .maybeSingle()
@@ -29,9 +29,8 @@ export async function GET(req: NextRequest) {
   if (colab) {
     return NextResponse.json({
       esColab: true,
-      localId: colab.local_id,
+      localId: colab.org_id,
       rol: colab.rol,
-      mesasAsignadas: colab.mesas_asignadas ?? null,
     })
   }
 
