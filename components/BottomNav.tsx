@@ -73,30 +73,39 @@ export function BottomNav() {
 
       {/* Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50">
-        <div className="flex items-end justify-around px-2 pb-2 pt-1">
+        <div className="grid grid-cols-5 items-end px-1 pb-2 pt-1">
 
-          {/* Items izquierda */}
-          {leftItems.map(item => {
+          {/* Col 1 — Socios */}
+          {leftItems[0] ? (() => {
+            const item = leftItems[0]
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all
-                  ${active ? 'text-violet-400' : 'text-gray-500'}`}
-              >
+              <Link key={item.href} href={item.href}
+                className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all
+                  ${active ? 'text-violet-400' : 'text-gray-500'}`}>
                 <span className="text-xl">{item.emoji}</span>
                 <span className="text-xs font-medium">{item.label}</span>
               </Link>
             )
-          })}
+          })() : <div />}
 
-          {/* Check-in central FAB */}
-          {permisos.verCheckin && (
-            <Link
-              href="/checkin"
-              className={`flex flex-col items-center gap-1 -mt-4 transition-all`}
-            >
+          {/* Col 2 — Cobros */}
+          {leftItems[1] ? (() => {
+            const item = leftItems[1]
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all
+                  ${active ? 'text-violet-400' : 'text-gray-500'}`}>
+                <span className="text-xl">{item.emoji}</span>
+                <span className="text-xs font-medium">{item.label}</span>
+              </Link>
+            )
+          })() : <div />}
+
+          {/* Col 3 — Check-in FAB (centro exacto) */}
+          {permisos.verCheckin ? (
+            <Link href="/checkin" className="flex flex-col items-center gap-1 -mt-4">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all
                 ${pathname === '/checkin' ? 'bg-violet-500 scale-95' : 'bg-violet-600 active:scale-95'}`}>
                 <span className="text-2xl">📲</span>
@@ -105,29 +114,27 @@ export function BottomNav() {
                 Check-in
               </span>
             </Link>
-          )}
+          ) : <div />}
 
-          {/* Items derecha */}
-          {rightItems.map(item => {
+          {/* Col 4 — Inicio */}
+          {rightItems[0] ? (() => {
+            const item = rightItems[0]
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all
-                  ${active ? 'text-violet-400' : 'text-gray-500'}`}
-              >
+              <Link key={item.href} href={item.href}
+                className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all
+                  ${active ? 'text-violet-400' : 'text-gray-500'}`}>
                 <span className="text-xl">{item.emoji}</span>
                 <span className="text-xs font-medium">{item.label}</span>
               </Link>
             )
-          })}
+          })() : <div />}
 
-          {/* Botón Más */}
+          {/* Col 5 — Más */}
           {moreItems.length > 0 && (
             <button
               onClick={() => setDrawerOpen(v => !v)}
-              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all
+              className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all
                 ${drawerOpen ? 'text-violet-400' : 'text-gray-500'}`}
             >
               <span className="text-xl">☰</span>
