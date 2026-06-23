@@ -8,10 +8,10 @@ const MAIN_ITEMS = [
   { href: '/socios',    label: 'Socios',    emoji: '👥', permiso: 'verSocios'    },
   { href: '/cobros',    label: 'Cobros',    emoji: '💰', permiso: 'verCobros'    },
   { href: '/dashboard', label: 'Inicio',    emoji: '📊', permiso: 'verDashboard' },
-  { href: '/asistencias',label: 'Asistencias',emoji: '📋', permiso: 'verAsistencias'},
 ] as const
 
 const MORE_ITEMS = [
+  { href: '/asistencias',  label: 'Asistencias',  emoji: '📋', permiso: 'verAsistencias'   },
   { href: '/membresias',   label: 'Membresías',   emoji: '🎫', permiso: 'verMembresias'    },
   { href: '/actividades',  label: 'Actividades',  emoji: '🏃', permiso: 'verActividades'   },
   { href: '/profesores',   label: 'Profesores',   emoji: '👨‍🏫', permiso: 'verProfesores'    },
