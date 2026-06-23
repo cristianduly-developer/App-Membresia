@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -31,7 +31,7 @@ function sumarDias(fecha: string, dias: number): string {
   return d.toISOString().split('T')[0]
 }
 
-export default function NuevoCobroPage() {
+function NuevoCobroInner() {
   const { localId } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -321,5 +321,13 @@ export default function NuevoCobroPage() {
 
       </div>
     </RouteGuard>
+  )
+}
+
+export default function NuevoCobroPage() {
+  return (
+    <Suspense>
+      <NuevoCobroInner />
+    </Suspense>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -21,7 +21,7 @@ function sumarDias(dias: number): string {
   return d.toISOString().split('T')[0]
 }
 
-export default function NuevaMembresiaPage() {
+function NuevaMembresiaInner() {
   const { localId } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -221,5 +221,13 @@ export default function NuevaMembresiaPage() {
         </div>
       </div>
     </RouteGuard>
+  )
+}
+
+export default function NuevaMembresiaPage() {
+  return (
+    <Suspense>
+      <NuevaMembresiaInner />
+    </Suspense>
   )
 }

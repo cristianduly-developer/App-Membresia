@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -7,7 +7,7 @@ import { useSession } from '@/lib/sessionStore'
 
 const ESTADOS = ['activo', 'inactivo', 'suspendido']
 
-export default function NuevoSocioPage() {
+function NuevoSocioInner() {
   const { localId } = useSession()
   const router = useRouter()
 
@@ -198,5 +198,13 @@ export default function NuevoSocioPage() {
         </div>
       </div>
     </RouteGuard>
+  )
+}
+
+export default function NuevoSocioPage() {
+  return (
+    <Suspense>
+      <NuevoSocioInner />
+    </Suspense>
   )
 }
