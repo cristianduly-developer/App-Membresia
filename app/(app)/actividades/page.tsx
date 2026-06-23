@@ -50,7 +50,7 @@ export default function ActividadesPage() {
       .select('id, nombre, dias, horario_inicio, horario_fin, cupo_maximo, profesor_id, profesores(nombre, apellido)')
       .eq('org_id', localId)
       .order('nombre')
-    setActividades((data ?? []) as Actividad[])
+    setActividades((data ?? []) as unknown as Actividad[])
     setLoading(false)
   }
 
