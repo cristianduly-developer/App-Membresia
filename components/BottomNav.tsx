@@ -8,12 +8,12 @@ const MAIN_ITEMS = [
   { href: '/socios',    label: 'Socios',    emoji: '👥', permiso: 'verSocios'    },
   { href: '/cobros',    label: 'Cobros',    emoji: '💰', permiso: 'verCobros'    },
   { href: '/dashboard', label: 'Inicio',    emoji: '📊', permiso: 'verDashboard' },
-  { href: '/membresias',label: 'Membresías',emoji: '🎫', permiso: 'verMembresias'},
+  { href: '/asistencias',label: 'Asistencias',emoji: '📋', permiso: 'verAsistencias'},
 ] as const
 
 const MORE_ITEMS = [
+  { href: '/membresias',   label: 'Membresías',   emoji: '🎫', permiso: 'verMembresias'    },
   { href: '/actividades',  label: 'Actividades',  emoji: '🏃', permiso: 'verActividades'   },
-  { href: '/asistencias',  label: 'Asistencias',  emoji: '📋', permiso: 'verAsistencias'   },
   { href: '/profesores',   label: 'Profesores',   emoji: '👨‍🏫', permiso: 'verProfesores'    },
   { href: '/liquidaciones',label: 'Liquidaciones',emoji: '📑', permiso: 'verLiquidaciones' },
   { href: '/apto-medico',  label: 'Apto médico',  emoji: '🩺', permiso: 'verSocios'        },
