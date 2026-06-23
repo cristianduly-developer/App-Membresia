@@ -6,13 +6,13 @@ import { SessionGuardProvider } from "@/components/SessionGuardProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SocioApp",
+  title: "App-Membresia",
   description: "Gestión de socios y membresías",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SocioApp",
+    title: "App-Membresia",
   },
 };
 
