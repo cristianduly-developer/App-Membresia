@@ -76,6 +76,9 @@ export async function GET(req: NextRequest) {
         activo: true,
       })
     }
+    // Actualizar ultimo_acceso
+    const centralPing = createClient(process.env.CENTRAL_URL!, process.env.CENTRAL_SERVICE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } })
+    centralPing.from('suscripciones_apps').update({ ultimo_acceso: new Date().toISOString() }).eq('org_id', acceso.ret_org_id).eq('app_id', 'app-membresias').then(() => {})
     return NextResponse.json({ esColab: false, acceso })
   }
 
