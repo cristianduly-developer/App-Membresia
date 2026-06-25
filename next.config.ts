@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
-import withPWA from 'next-pwa'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const withPWA = require('next-pwa')
 
 const pwaConfig = withPWA({
   dest: 'public',
