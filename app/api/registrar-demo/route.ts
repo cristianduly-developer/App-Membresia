@@ -53,20 +53,62 @@ export async function POST(req: NextRequest) {
   try {
     const { data: orgData } = await central.from('organizaciones').select('nombre, email_contacto').eq('id', orgId).single()
     const fecha = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` },
-      body: JSON.stringify({
-        from: 'onboarding@resend.dev',
-        to: 'cristianduly@gmail.com',
-        subject: `Nueva cuenta demo — SocioApp — ${orgData?.nombre ?? email}`,
-        html: `<h2>Nueva cuenta demo en SocioApp</h2>
-          <p><b>Nombre:</b> ${orgData?.nombre ?? '—'}</p>
-          <p><b>Email:</b> ${orgData?.email_contacto ?? email}</p>
-          <p><b>Plan:</b> Profesional (demo ${DEMO_DIAS} días)</p>
-          <p><b>Fecha:</b> ${fecha}</p>`,
+    const mailFrom = process.env.MAIL_FROM ?? 'onboarding@resend.dev'
+    const appUrl = 'https://socioapp.vercel.app'
+
+    const bienvenidaHtml = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+        <div style="background:#7c3aed;padding:32px 24px;text-align:center;">
+          <div style="font-size:40px;">🏋️</div>
+          <h1 style="color:white;margin:8px 0 4px;font-size:22px;">App Membresías</h1>
+          <p style="color:rgba(255,255,255,.85);margin:0;font-size:14px;">Soluciones MDP</p>
+        </div>
+        <div style="padding:32px 24px;">
+          <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">¡Hola, ${nombre}!</h2>
+          <p style="color:#374151;margin:0 0 24px;font-size:15px;line-height:1.6;">
+            Tu prueba gratuita de <strong>${DEMO_DIAS} días</strong> ya está activa. Podés empezar a gestionar tu gimnasio o club ahora mismo.
+          </p>
+          <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px;">
+            <p style="margin:0 0 12px;font-weight:700;color:#111827;font-size:13px;text-transform:uppercase;letter-spacing:.5px;">¿Qué podés hacer?</p>
+            <p style="margin:0 0 8px;color:#374151;font-size:14px;">✅ Registrar socios y gestionar actividades</p>
+            <p style="margin:0 0 8px;color:#374151;font-size:14px;">✅ Registrar cobros y ver caja y rentabilidad</p>
+            <p style="margin:0 0 0;color:#374151;font-size:14px;">✅ Gestionar profesores y liquidaciones</p>
+          </div>
+          <div style="text-align:center;">
+            <a href="${appUrl}" style="display:inline-block;background:#7c3aed;color:white;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;">Abrir App Membresías →</a>
+          </div>
+        </div>
+        <div style="border-top:1px solid #f1f5f9;padding:20px 24px;text-align:center;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Soluciones MDP · Si tenés dudas respondé este mail</p>
+        </div>
+      </div>`
+
+    await Promise.all([
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` },
+        body: JSON.stringify({
+          from: mailFrom,
+          to: email,
+          subject: `¡Bienvenido/a a App Membresías! Tu prueba de ${DEMO_DIAS} días está activa`,
+          html: bienvenidaHtml,
+        }),
       }),
-    })
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` },
+        body: JSON.stringify({
+          from: mailFrom,
+          to: 'cristianduly@gmail.com',
+          subject: `Nueva cuenta demo — App Membresías — ${orgData?.nombre ?? email}`,
+          html: `<h2>Nueva cuenta demo en App Membresías</h2>
+            <p><b>Nombre:</b> ${orgData?.nombre ?? '—'}</p>
+            <p><b>Email:</b> ${orgData?.email_contacto ?? email}</p>
+            <p><b>Plan:</b> Profesional (demo ${DEMO_DIAS} días)</p>
+            <p><b>Fecha:</b> ${fecha}</p>`,
+        }),
+      }),
+    ])
   } catch {}
 
   return NextResponse.json({ ok: true, org_id: orgId })
