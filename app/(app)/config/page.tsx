@@ -86,14 +86,15 @@ export default function ConfigPage() {
     if (colaboradores.length >= limites.maxColaboradores) { setErrorColab(`Tu plan permite hasta ${limites.maxColaboradores} colaboradores`); return }
     setGuardandoColab(true)
     setErrorColab(null)
-    const { error } = await supabaseApp.from('colaboradores').insert({
-      org_id: localId,
-      email: formColab.email.trim().toLowerCase(),
-      nombre: formColab.nombre.trim(),
-      rol: formColab.rol,
+    const { data: { session } } = await supabaseApp.auth.getSession()
+    const res = await fetch('/api/colaboradores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ nombre: formColab.nombre.trim(), email: formColab.email.trim().toLowerCase(), rol: formColab.rol, orgId: localId }),
     })
-    if (error) {
-      setErrorColab(error.code === '23505' ? 'Ese email ya está registrado' : error.message)
+    if (!res.ok) {
+      const d = await res.json()
+      setErrorColab(d.error || 'Error al guardar el colaborador')
       setGuardandoColab(false)
       return
     }
