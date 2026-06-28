@@ -305,7 +305,13 @@ export default function ConfigPage() {
             {/* Soporte */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Soporte</h2>
-              <p className="text-gray-500 text-sm">¿Tenés alguna duda o problema? Escribinos por WhatsApp.</p>
+              <p className="text-gray-500 text-sm">¿Tenés alguna duda o problema?</p>
+              <button
+                onClick={() => { window.location.href = 'https://membresias.solucionesmdp.com.ar/ayuda' }}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-violet-700 hover:bg-violet-600 text-white font-semibold text-sm transition"
+              >
+                📖 Ver guía de ayuda
+              </button>
               <a
                 href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
                 target="_blank"

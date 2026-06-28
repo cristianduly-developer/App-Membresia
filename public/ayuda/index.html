@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guía de ayuda — App Membresías</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --violet: #7c3aed;
+      --violet-light: #8b5cf6;
+      --violet-dark: #5b21b6;
+      --bg: #030712;
+      --bg2: #0f172a;
+      --bg3: #1e293b;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    /* HEADER */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(3,7,18,.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-brand .emoji { font-size: 22px; }
+    .header-brand .name { font-weight: 800; font-size: 16px; color: var(--text); }
+    .header-brand .badge { background: var(--violet); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .btn-app { background: var(--violet); color: white; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; transition: background .2s; }
+    .btn-app:hover { background: var(--violet-light); }
+
+    /* LAYOUT */
+    .layout { display: flex; max-width: 1100px; margin: 0 auto; gap: 0; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 240px; flex-shrink: 0; padding: 32px 16px;
+      position: sticky; top: 57px; height: calc(100vh - 57px); overflow-y: auto;
+    }
+    .sidebar-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; padding: 0 8px; }
+    .sidebar a {
+      display: flex; align-items: center; gap-8px; gap: 8px;
+      padding: 7px 10px; border-radius: 8px; font-size: 13px; color: var(--muted);
+      text-decoration: none; transition: all .15s; margin-bottom: 2px;
+    }
+    .sidebar a:hover, .sidebar a.active { background: var(--bg3); color: var(--text); }
+    .sidebar a.active { color: #a78bfa; font-weight: 600; }
+
+    /* MOBILE PILLS */
+    .mobile-pills {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(3,7,18,.95); border-top: 1px solid var(--border);
+      padding: 10px 12px; overflow-x: auto; gap: 8px; white-space: nowrap;
+    }
+    .mobile-pills a {
+      display: inline-block; padding: 6px 14px; border-radius: 20px;
+      background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 600;
+      text-decoration: none; transition: all .15s;
+    }
+    .mobile-pills a:hover, .mobile-pills a.active { background: var(--violet); color: white; }
+
+    /* CONTENT */
+    .content { flex: 1; padding: 40px 32px 120px; min-width: 0; }
+
+    /* HERO */
+    .hero { margin-bottom: 48px; }
+    .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+    .hero h1 span { color: var(--violet-light); }
+    .hero p { color: var(--muted); font-size: 16px; max-width: 540px; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 56px; scroll-margin-top: 80px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section-header .icon { font-size: 24px; }
+    .section-header h2 { font-size: 20px; font-weight: 700; }
+
+    /* CARDS */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .card p, .card li { font-size: 14px; color: var(--muted); line-height: 1.7; }
+    .card ul { padding-left: 18px; }
+    .card li { margin-bottom: 4px; }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--violet); color: white; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .step-text { font-size: 14px; color: var(--muted); padding-top: 4px; }
+    .step-text strong { color: var(--text); }
+
+    /* CALLOUTS */
+    .tip, .warn, .success { border-radius: 10px; padding: 14px 16px; font-size: 13px; margin-bottom: 12px; display: flex; gap: 10px; }
+    .tip { background: #1e3a5f; border: 1px solid #2563eb; color: #93c5fd; }
+    .warn { background: #451a03; border: 1px solid #d97706; color: #fcd34d; }
+    .success { background: #052e16; border: 1px solid #059669; color: #6ee7b7; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: var(--bg3); color: var(--muted); font-weight: 600; padding: 10px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--muted); }
+    td:first-child { color: var(--text); font-weight: 500; }
+    tr:last-child td { border-bottom: none; }
+    .check { color: var(--green); } .cross { color: var(--border); }
+
+    /* PILLS */
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .pill.violet { background: #3b0764; border-color: var(--violet); color: #c4b5fd; }
+
+    /* FAQ */
+    details { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+    summary { padding: 14px 16px; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; color: var(--violet-light); font-size: 18px; font-weight: 400; }
+    details[open] summary::after { content: '−'; }
+    details[open] summary { color: #a78bfa; }
+    .faq-body { padding: 0 16px 16px; font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .mobile-pills { display: flex; }
+      .content { padding: 24px 16px 100px; }
+      .hero h1 { font-size: 24px; }
+      .layout { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">
+    <span class="emoji">🏋️</span>
+    <span class="name">App Membresías</span>
+    <span class="badge">Centro de ayuda</span>
+  </div>
+  <a href="https://membresias.solucionesmdp.com.ar" class="btn-app">Abrir app →</a>
+</header>
+
+<!-- MOBILE PILLS -->
+<nav class="mobile-pills" id="mobilePills">
+  <a href="#inicio">🏠 Inicio</a>
+  <a href="#socios">👥 Socios</a>
+  <a href="#membresias">🎫 Membresías</a>
+  <a href="#cobros">💰 Cobros</a>
+  <a href="#checkin">📲 Check-in</a>
+  <a href="#asistencias">📋 Asistencias</a>
+  <a href="#actividades">🏃 Actividades</a>
+  <a href="#profesores">👨‍🏫 Profesores</a>
+  <a href="#apto">🩺 Apto médico</a>
+  <a href="#caja">🧾 Caja</a>
+  <a href="#planes">⭐ Planes</a>
+  <a href="#faq">❓ FAQ</a>
+</nav>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Contenido</div>
+    <a href="#inicio">🏠 Dashboard</a>
+    <a href="#socios">👥 Socios</a>
+    <a href="#membresias">🎫 Membresías</a>
+    <a href="#cobros">💰 Cobros</a>
+    <a href="#checkin">📲 Check-in</a>
+    <a href="#asistencias">📋 Asistencias</a>
+    <a href="#actividades">🏃 Actividades</a>
+    <a href="#profesores">👨‍🏫 Profesores</a>
+    <a href="#apto">🩺 Apto médico</a>
+    <a href="#caja">🧾 Caja</a>
+    <a href="#rentabilidad">📈 Rentabilidad</a>
+    <a href="#liquidaciones">📑 Liquidaciones</a>
+    <a href="#config">⚙️ Configuración</a>
+    <a href="#planes">⭐ Planes</a>
+    <a href="#faq">❓ FAQ</a>
+    <a href="#contacto">📞 Contacto</a>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1>Guía de <span>App Membresías</span></h1>
+      <p>Todo lo que necesitás saber para gestionar tu gimnasio o club desde el celu o la PC.</p>
+    </div>
+
+    <!-- INICIO -->
+    <section class="section" id="inicio">
+      <div class="section-header">
+        <span class="icon">🏠</span>
+        <h2>Dashboard</h2>
+      </div>
+      <div class="card">
+        <p>La pantalla principal te muestra un resumen del estado de tu negocio en tiempo real.</p>
+      </div>
+      <div class="card">
+        <h3>Métricas principales</h3>
+        <ul>
+          <li><strong>Socios activos</strong> — cantidad de socios con membresía vigente</li>
+          <li><strong>Próximos a vencer</strong> — socios cuya membresía vence en los próximos 7 días</li>
+          <li><strong>Vencidos</strong> — socios con membresía expirada</li>
+          <li><strong>Ingresos del mes</strong> — total cobrado en el mes actual</li>
+          <li><strong>Asistencias hoy</strong> — cantidad de check-ins registrados hoy</li>
+        </ul>
+      </div>
+      <div class="tip">💡 Los socios próximos a vencer aparecen destacados para que puedas contactarlos antes de que se vayan.</div>
+    </section>
+
+    <!-- SOCIOS -->
+    <section class="section" id="socios">
+      <div class="section-header">
+        <span class="icon">👥</span>
+        <h2>Socios</h2>
+      </div>
+      <div class="card">
+        <h3>Cómo agregar un socio</h3>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Andá a <strong>Socios</strong> en el menú</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Tocá el botón <strong>+ Nuevo socio</strong></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Completá nombre, apellido y DNI (obligatorios). Teléfono, email y fecha de nacimiento son opcionales</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Guardá. El socio queda en estado <strong>activo</strong></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Ficha del socio</h3>
+        <p>Al tocar un socio podés ver su historial completo: membresías activas, cobros realizados y asistencias. También podés editar sus datos o darlo de baja.</p>
+      </div>
+      <div class="warn">⚠️ El DNI debe ser único — no podés registrar dos socios con el mismo DNI.</div>
+    </section>
+
+    <!-- MEMBRESÍAS -->
+    <section class="section" id="membresias">
+      <div class="section-header">
+        <span class="icon">🎫</span>
+        <h2>Membresías</h2>
+      </div>
+      <div class="card">
+        <h3>Cómo asignar una membresía</h3>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Andá a <strong>Membresías → Nueva membresía</strong></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Buscá al socio por nombre</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Elegí el tipo (mensual, trimestral, etc.) y el precio</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Seleccioná las actividades incluidas</div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-text">Confirmá la fecha de inicio — la fecha de vencimiento se calcula automáticamente</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Estados de membresía</h3>
+        <div class="pills">
+          <span class="pill" style="background:#052e16;border-color:#059669;color:#6ee7b7">✅ Activa</span>
+          <span class="pill" style="background:#451a03;border-color:#d97706;color:#fcd34d">⚠️ Próxima a vencer</span>
+          <span class="pill" style="background:#450a0a;border-color:#dc2626;color:#fca5a5">🚫 Vencida</span>
+          <span class="pill" style="background:#1e3a5f;border-color:#2563eb;color:#93c5fd">❄️ Congelada</span>
+          <span class="pill" style="background:#1a1a2e;border-color:#6366f1;color:#a5b4fc">❌ Sin membresía</span>
+        </div>
+      </div>
+      <div class="tip">💡 Una membresía pasa a <strong>Próxima a vencer</strong> cuando quedan 7 días o menos.</div>
+    </section>
+
+    <!-- COBROS -->
+    <section class="section" id="cobros">
+      <div class="section-header">
+        <span class="icon">💰</span>
+        <h2>Cobros</h2>
+      </div>
+      <div class="card">
+        <h3>Registrar un cobro</h3>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Andá a <strong>Cobros → Nuevo cobro</strong></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Buscá el socio</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Ingresá el monto y el método de pago</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Guardá — el cobro queda registrado con fecha y hora</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Métodos de pago disponibles</h3>
+        <div class="pills">
+          <span class="pill">💵 Efectivo</span>
+          <span class="pill">🏦 Transferencia</span>
+          <span class="pill">💳 Débito</span>
+          <span class="pill">💳 Crédito</span>
+        </div>
+      </div>
+      <div class="tip">💡 Si venís del Check-in de un socio con membresía vencida, el botón <strong>"Cobrar ahora"</strong> te lleva directo al formulario con el socio prellenado.</div>
+    </section>
+
+    <!-- CHECK-IN -->
+    <section class="section" id="checkin">
+      <div class="section-header">
+        <span class="icon">📲</span>
+        <h2>Check-in</h2>
+      </div>
+      <div class="card">
+        <h3>Cómo funciona</h3>
+        <p>El check-in registra la asistencia de un socio al momento de entrar. Hay dos modos:</p>
+        <br/>
+        <div class="steps">
+          <div class="step"><div class="step-num">📷</div><div class="step-text"><strong>QR</strong> — escaneás el código QR del socio con la cámara. Se registra automáticamente.</div></div>
+          <div class="step"><div class="step-num">🔍</div><div class="step-text"><strong>Manual</strong> — buscás el nombre del socio y tocás para registrar.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Pantalla de resultado</h3>
+        <p>Después del check-in aparece una pantalla grande de colores para ver de lejos:</p>
+        <div class="pills" style="margin-top:10px">
+          <span class="pill" style="background:#052e16;border-color:#059669;color:#6ee7b7">✅ Verde — acceso OK</span>
+          <span class="pill" style="background:#451a03;border-color:#d97706;color:#fcd34d">⚠️ Amarillo — próximo a vencer</span>
+          <span class="pill" style="background:#450a0a;border-color:#dc2626;color:#fca5a5">🚫 Rojo — vencida o sin membresía</span>
+        </div>
+      </div>
+      <div class="warn">⚠️ Para usar el QR necesitás permitir el acceso a la cámara en el navegador. Si lo bloqueaste, entrá a la configuración del navegador y habilitalo.</div>
+      <div class="tip">💡 Si un socio ya hizo check-in hoy, el sistema te lo avisa pero no lo registra dos veces.</div>
+    </section>
+
+    <!-- ASISTENCIAS -->
+    <section class="section" id="asistencias">
+      <div class="section-header">
+        <span class="icon">📋</span>
+        <h2>Asistencias</h2>
+      </div>
+      <div class="card">
+        <p>En esta sección podés ver el historial completo de entradas. Podés filtrar por fecha, actividad o socio. Cada registro muestra si fue por QR o manual.</p>
+      </div>
+      <div class="tip">💡 El dashboard te muestra cuántos socios no vinieron en los últimos días — útil para detectar deserción.</div>
+    </section>
+
+    <!-- ACTIVIDADES -->
+    <section class="section" id="actividades">
+      <div class="section-header">
+        <span class="icon">🏃</span>
+        <h2>Actividades</h2>
+      </div>
+      <div class="card">
+        <h3>Cómo crear una actividad</h3>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Andá a <strong>Actividades → Nueva</strong></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Ingresá el nombre (ej: Musculación, Yoga, Zumba)</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Seleccioná los días de la semana y horarios</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Asigná un profesor (opcional) y el cupo máximo</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <p>Las actividades se vinculan a las membresías — así sabés qué clase puede hacer cada socio.</p>
+      </div>
+    </section>
+
+    <!-- PROFESORES -->
+    <section class="section" id="profesores">
+      <div class="section-header">
+        <span class="icon">👨‍🏫</span>
+        <h2>Profesores</h2>
+      </div>
+      <div class="card">
+        <p>Registrá los profesores de tu gimnasio o club. Cada profesor puede estar asignado a una o más actividades. Desde esta sección también podés generar las liquidaciones de honorarios.</p>
+      </div>
+      <div class="tip">💡 Disponible en plan <strong>Profesional y Premium</strong>.</div>
+    </section>
+
+    <!-- APTO MÉDICO -->
+    <section class="section" id="apto">
+      <div class="section-header">
+        <span class="icon">🩺</span>
+        <h2>Apto médico</h2>
+      </div>
+      <div class="card">
+        <p>Controlá el vencimiento del apto médico de cada socio. La app te avisa cuando hay aptos vencidos o próximos a vencer para que puedas pedir la renovación a tiempo.</p>
+      </div>
+      <div class="tip">💡 Disponible en plan <strong>Profesional y Premium</strong>.</div>
+    </section>
+
+    <!-- CAJA -->
+    <section class="section" id="caja">
+      <div class="section-header">
+        <span class="icon">🧾</span>
+        <h2>Caja</h2>
+      </div>
+      <div class="card">
+        <p>Realizá el cierre de caja diario. La app agrupa los cobros del día por método de pago (efectivo, transferencia, débito, crédito) para que puedas cuadrar la caja rápidamente.</p>
+      </div>
+    </section>
+
+    <!-- RENTABILIDAD -->
+    <section class="section" id="rentabilidad">
+      <div class="section-header">
+        <span class="icon">📈</span>
+        <h2>Rentabilidad</h2>
+      </div>
+      <div class="card">
+        <p>Visualizá los ingresos del mes actual y comparalos con meses anteriores. Ves cuánto facturaste, cuántos socios pagaron y cuál es el ticket promedio.</p>
+      </div>
+      <div class="tip">💡 Disponible en plan <strong>Premium</strong>.</div>
+    </section>
+
+    <!-- LIQUIDACIONES -->
+    <section class="section" id="liquidaciones">
+      <div class="section-header">
+        <span class="icon">📑</span>
+        <h2>Liquidaciones</h2>
+      </div>
+      <div class="card">
+        <p>Generá la liquidación de honorarios de cada profesor al cierre del mes. Podés definir el monto fijo o porcentual por clase, y la app calcula automáticamente lo que le corresponde a cada uno según sus asistencias.</p>
+      </div>
+      <div class="tip">💡 Disponible en plan <strong>Profesional y Premium</strong>.</div>
+    </section>
+
+    <!-- CONFIG -->
+    <section class="section" id="config">
+      <div class="section-header">
+        <span class="icon">⚙️</span>
+        <h2>Configuración</h2>
+      </div>
+      <div class="card">
+        <h3>Desde Config podés:</h3>
+        <ul>
+          <li>Editar el nombre de tu negocio y datos de contacto</li>
+          <li>Ver tu plan actual y los días restantes de demo</li>
+          <li>Agregar colaboradores (recepcionistas o profesores) — plan Profesional+</li>
+          <li>Contactar soporte por WhatsApp</li>
+          <li>Cerrar sesión</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Colaboradores</h3>
+        <p>Podés agregar personas del equipo para que usen la app con acceso limitado:</p>
+        <br/>
+        <div class="steps">
+          <div class="step"><div class="step-num">🧑‍💼</div><div class="step-text"><strong>Recepcionista</strong> — puede hacer check-in, ver socios y registrar cobros</div></div>
+          <div class="step"><div class="step-num">👨‍🏫</div><div class="step-text"><strong>Profesor</strong> — puede ver sus actividades y asistencias</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLANES -->
+    <section class="section" id="planes">
+      <div class="section-header">
+        <span class="icon">⭐</span>
+        <h2>Planes</h2>
+      </div>
+      <div class="success">✅ Tu demo de 28 días incluye todas las funciones del plan Profesional sin límites.</div>
+      <br/>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Función</th>
+              <th>Básico $25.000/mes</th>
+              <th>Profesional $35.000/mes</th>
+              <th>Premium $50.000/mes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Socios</td><td>Hasta 100</td><td>Hasta 300</td><td>Ilimitados</td></tr>
+            <tr><td>Actividades</td><td>Hasta 3</td><td>Ilimitadas</td><td>Ilimitadas</td></tr>
+            <tr><td>Colaboradores</td><td class="cross">—</td><td>Hasta 2</td><td>Hasta 5</td></tr>
+            <tr><td>Check-in QR</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Cobros y caja</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Dashboard</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Apto médico</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Profesores y liquidaciones</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Alerta deserción</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Rentabilidad avanzada</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="section-header">
+        <span class="icon">❓</span>
+        <h2>Preguntas frecuentes</h2>
+      </div>
+
+      <details>
+        <summary>¿Funciona sin internet?</summary>
+        <div class="faq-body">La app requiere conexión a internet para guardar y sincronizar datos. Si la instalás como PWA (Agregar a pantalla de inicio), puede cargar más rápido, pero las operaciones necesitan conexión.</div>
+      </details>
+
+      <details>
+        <summary>¿Cómo instalo la app en mi celular?</summary>
+        <div class="faq-body">En Android: abrí la app en Chrome → tocá los tres puntitos → "Agregar a pantalla de inicio". En iPhone: abrí en Safari → tocá el ícono de compartir → "Agregar a pantalla de inicio". La app se instala como una aplicación nativa.</div>
+      </details>
+
+      <details>
+        <summary>¿Mis datos están seguros?</summary>
+        <div class="faq-body">Sí. Los datos se guardan en servidores de Supabase con encriptación y backups automáticos. Nunca compartimos tu información con terceros.</div>
+      </details>
+
+      <details>
+        <summary>¿Qué pasa cuando se vence el demo?</summary>
+        <div class="faq-body">La app queda bloqueada pero tus datos se conservan durante 30 días. Si te suscribís antes de que expiren esos 30 días, recuperás todo. Después de 30 días los datos se eliminan.</div>
+      </details>
+
+      <details>
+        <summary>¿Puedo usar la app en la PC y el celular al mismo tiempo?</summary>
+        <div class="faq-body">Sí. La app funciona en cualquier dispositivo con navegador. Los cambios se sincronizan en tiempo real. Podés tener la recepción en la PC y hacer check-in desde el celu al mismo tiempo.</div>
+      </details>
+
+      <details>
+        <summary>¿El QR no funciona, qué hago?</summary>
+        <div class="faq-body">Verificá que el navegador tenga permiso para acceder a la cámara. En Chrome: clic en el ícono del candado en la barra de dirección → permisos → Cámara → Permitir. Si el problema persiste, usá el modo Manual (búsqueda por nombre).</div>
+      </details>
+
+      <details>
+        <summary>¿Puedo agregar más de un usuario?</summary>
+        <div class="faq-body">Sí, en plan Profesional podés agregar hasta 2 colaboradores y en Premium hasta 5. Cada uno tiene su propio acceso con los permisos que vos definís (recepcionista o profesor).</div>
+      </details>
+
+      <details>
+        <summary>¿Cómo cancelo la suscripción?</summary>
+        <div class="faq-body">Escribinos por WhatsApp o email y cancelamos sin costo ni penalidad. Podés exportar tus datos antes de cancelar.</div>
+      </details>
+
+      <details>
+        <summary>¿Puedo cambiar de plan?</summary>
+        <div class="faq-body">Sí, podés subir o bajar de plan en cualquier momento. Contactanos por WhatsApp y lo gestionamos al instante.</div>
+      </details>
+
+      <details>
+        <summary>¿Hay contrato de permanencia?</summary>
+        <div class="faq-body">No. Es mes a mes, sin contrato ni permanencia mínima. Pagás mientras usás y cancelás cuando querés.</div>
+      </details>
+    </section>
+
+    <!-- CONTACTO -->
+    <section class="section" id="contacto">
+      <div class="section-header">
+        <span class="icon">📞</span>
+        <h2>Contacto y soporte</h2>
+      </div>
+      <div class="card">
+        <h3>¿Necesitás ayuda?</h3>
+        <p>Estamos disponibles por WhatsApp de lunes a sábado.</p>
+        <br/>
+        <a href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia" style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:white;padding:12px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-top:4px;">
+          💬 Escribinos por WhatsApp
+        </a>
+      </div>
+      <div class="card">
+        <p style="color:var(--muted);font-size:13px;">Soluciones MDP · <a href="https://solucionesmdp.com.ar" style="color:#a78bfa;">solucionesmdp.com.ar</a></p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Sidebar active on scroll
+  const sections = document.querySelectorAll('.section');
+  const sidebarLinks = document.querySelectorAll('.sidebar a');
+  const pillLinks = document.querySelectorAll('.mobile-pills a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        [...sidebarLinks, ...pillLinks].forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

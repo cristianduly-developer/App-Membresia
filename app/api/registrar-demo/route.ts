@@ -85,6 +85,13 @@ export async function POST(req: NextRequest) {
             <a href="${appUrl}" style="display:inline-block;background:#7c3aed;color:white;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;">Abrir App Membresías →</a>
           </div>
         </div>
+        <div style="padding:0 24px 24px;">
+          <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:20px;text-align:center;">
+            <p style="margin:0 0 6px;font-weight:700;color:#5b21b6;font-size:15px;">¿No sabés por dónde empezar?</p>
+            <p style="margin:0 0 16px;color:#6b7280;font-size:13px;">Tenemos una guía completa con todo lo que necesitás saber.</p>
+            <a href="${appUrl}/ayuda" style="display:inline-block;background:#7c3aed;color:white;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;">📖 Ver guía de ayuda</a>
+          </div>
+        </div>
         <div style="border-top:1px solid #f1f5f9;padding:20px 24px;text-align:center;">
           <p style="margin:0;color:#9ca3af;font-size:12px;">Soluciones MDP · <a href="https://wa.me/5492235767784" style="color:#9ca3af;">Escribinos por WhatsApp</a></p>
         </div>
