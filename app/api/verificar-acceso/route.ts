@@ -14,15 +14,17 @@ export async function GET(req: NextRequest) {
 
   const token = authHeader.split(' ')[1]
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
-  if (error || !user || user.email?.toLowerCase() !== email.toLowerCase()) {
+  if (error || !user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
+  // Usar el email del token verificado (más confiable que el param)
+  const verifiedEmail = (user.email ?? email).toLowerCase()
 
   // Verificar si es colaborador
   const { data: colab } = await supabaseAdmin
     .from('colaboradores')
     .select('org_id, rol')
-    .eq('email', email.toLowerCase())
+    .eq('email', verifiedEmail)
     .eq('activo', true)
     .maybeSingle()
 
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Verificar contra el central
-  const acceso = await verificarAcceso(email)
+  const acceso = await verificarAcceso(verifiedEmail)
 
   if (acceso && acceso.tiene_acceso) {
     // Auto-registrar empleado si no existe
@@ -66,12 +68,12 @@ export async function GET(req: NextRequest) {
       .from('empleados_organizacion')
       .select('id')
       .eq('org_id', acceso.ret_org_id)
-      .eq('email', email.toLowerCase())
+      .eq('email', verifiedEmail)
       .maybeSingle()
     if (!empExiste) {
       await central.from('empleados_organizacion').insert({
         org_id: acceso.ret_org_id,
-        email: email.toLowerCase(),
+        email: verifiedEmail,
         nombre: acceso.nombre_docente || null,
         activo: true,
       })
@@ -91,7 +93,7 @@ export async function GET(req: NextRequest) {
   const { data: empData } = await central
     .from('empleados_organizacion')
     .select('org_id')
-    .eq('email', email.toLowerCase())
+    .eq('email', verifiedEmail)
     .limit(1)
 
   if (empData && empData.length > 0) {
