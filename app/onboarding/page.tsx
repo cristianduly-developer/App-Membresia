@@ -37,18 +37,6 @@ export default function OnboardingPage() {
       onboarding_completo: true,
     })
 
-    // Generar datos demo según el rubro seleccionado
-    const { data: { session } } = await supabaseApp.auth.getSession()
-    if (session?.access_token) {
-      await fetch('/api/generar-demo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ org_id: localId, rubro: form.rubro }),
-      })
-    }
 
     setSession({
       nombreNegocio: form.nombre,
