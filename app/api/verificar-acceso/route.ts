@@ -113,3 +113,50 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 }
+
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+  const token = authHeader.split(' ')[1]
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const verifiedEmail = (user.email ?? '').toLowerCase()
+
+  const { data: colab } = await supabaseAdmin
+    .from('colaboradores')
+    .select('org_id, rol')
+    .eq('email', verifiedEmail)
+    .eq('activo', true)
+    .maybeSingle()
+
+  if (colab) {
+    const central = createClient(process.env.CENTRAL_URL!, process.env.CENTRAL_SERVICE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } })
+    const { data: subData } = await central.from('suscripciones_apps').select('estado, plan').eq('org_id', colab.org_id).eq('app_id', 'app-membresias').maybeSingle()
+    if (!subData || ['suspendido', 'impago'].includes(subData.estado)) {
+      return NextResponse.json({ error: 'cuenta_suspendida' }, { status: 403 })
+    }
+    return NextResponse.json({ esColab: true, localId: colab.org_id, rol: colab.rol, plan: subData.plan ?? 'basico' })
+  }
+
+  const acceso = await verificarAcceso(verifiedEmail)
+
+  if (acceso && acceso.tiene_acceso) {
+    const central = createClient(process.env.CENTRAL_URL!, process.env.CENTRAL_SERVICE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } })
+    const { data: subRow } = await central
+      .from('suscripciones_apps')
+      .select('cant_sesiones')
+      .eq('org_id', acceso.ret_org_id)
+      .eq('app_id', 'app-membresias')
+      .maybeSingle()
+    central.from('suscripciones_apps').update({
+      ultimo_acceso: new Date().toISOString(),
+      cant_sesiones: (subRow?.cant_sesiones ?? 0) + 1,
+    }).eq('org_id', acceso.ret_org_id).eq('app_id', 'app-membresias').then(() => {})
+    return NextResponse.json({ esColab: false, acceso })
+  }
+
+  return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+}
