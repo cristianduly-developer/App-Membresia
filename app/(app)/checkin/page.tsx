@@ -84,9 +84,16 @@ export default function CheckinPage() {
     }
   }, [detener])
 
+  const [camaraIniciada, setCamaraIniciada] = useState(false)
+
+  const iniciarConGesto = useCallback(() => {
+    setCamaraIniciada(true)
+    activoRef.current = false  // reset por si quedó en estado anterior
+    iniciar()
+  }, [iniciar])
+
   useEffect(() => {
-    if (modo === 'scan' && !resultado) iniciar()
-    else detener()
+    if (modo !== 'scan' || resultado) { detener(); setCamaraIniciada(false) }
   }, [modo, resultado])
 
   useEffect(() => () => detener(), [])
@@ -234,6 +241,15 @@ export default function CheckinPage() {
                 <button onClick={() => iniciar()} className="w-full py-3 bg-violet-700 rounded-xl text-white font-semibold">Reintentar</button>
                 <button onClick={() => setModo('manual')} className="w-full py-2.5 bg-gray-800 rounded-xl text-gray-400">Usar modo manual</button>
               </div>
+            ) : !camaraIniciada ? (
+              <button
+                onClick={iniciarConGesto}
+                className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
+              >
+                <span className="text-7xl">📷</span>
+                <span className="text-white font-bold text-xl">Abrir cámara</span>
+                <span className="text-gray-500 text-sm">Tocá para escanear el QR</span>
+              </button>
             ) : (
               <>
                 <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
@@ -253,7 +269,7 @@ export default function CheckinPage() {
                 {errorMsg && (
                   <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-2">
                     <p className="text-red-300 text-sm">{errorMsg}</p>
-                    <button onClick={() => iniciar()} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
+                    <button onClick={iniciarConGesto} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
                   </div>
                 )}
               </>
