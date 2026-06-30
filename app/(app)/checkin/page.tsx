@@ -212,7 +212,7 @@ export default function CheckinPage() {
               <div className="w-full bg-gray-900 border border-gray-700 rounded-2xl p-5 space-y-3 text-sm">
                 <p className="text-red-400 font-semibold text-center">Permiso de cámara denegado</p>
                 <p className="text-gray-400">En Chrome Android: entrá a <strong className="text-white">chrome://settings/content/camera</strong> en la barra de dirección, buscá este sitio en Bloqueados y cambialo a Permitir.</p>
-                <button onClick={() => iniciar()} className="w-full py-3 bg-violet-700 rounded-xl text-white font-semibold">Reintentar</button>
+                <button onClick={iniciarConGesto} className="w-full py-3 bg-violet-700 rounded-xl text-white font-semibold">Reintentar</button>
                 <button onClick={() => setModo('manual')} className="w-full py-2.5 bg-gray-800 rounded-xl text-gray-400">Usar modo manual</button>
               </div>
             ) : !camaraIniciada ? (
