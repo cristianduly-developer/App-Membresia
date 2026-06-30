@@ -32,55 +32,36 @@ export default function CheckinPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
-  const [debugLines, setDebugLines] = useState<string[]>([])
 
   const handleFoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setProcesando(true)
     setErrorMsg(null)
-    const logs: string[] = [`📁 ${Math.round(file.size/1024)}KB`]
-    setDebugLines(logs)
-
-    const addLog = (msg: string) => {
-      logs.push(msg)
-      setDebugLines([...logs])
-    }
-
     try {
       const img = new Image()
       const url = URL.createObjectURL(file)
       img.src = url
       await new Promise<void>(res => { img.onload = () => res() })
       URL.revokeObjectURL(url)
-      addLog(`📐 ${img.naturalWidth}x${img.naturalHeight}`)
 
-      // 1. ZXing — más potente que jsQR para fotos
-      addLog('🔍 Probando ZXing...')
+      // ZXing — mejor para fotos de pantalla
       try {
         const { BrowserQRCodeReader } = await import('@zxing/browser')
-        const reader = new BrowserQRCodeReader()
-        const result = await reader.decodeFromImageElement(img)
-        addLog(`✅ ZXing: ${result.getText().slice(0, 20)}`)
+        const result = await new BrowserQRCodeReader().decodeFromImageElement(img)
         procesarCheckin(result.getText())
         return
-      } catch (e: any) {
-        addLog(`❌ ZXing: ${e?.message ?? e?.name ?? 'no detectado'}`)
-      }
+      } catch {}
 
-      // 2. BarcodeDetector nativo
+      // BarcodeDetector nativo
       if ('BarcodeDetector' in window) {
-        addLog('🔍 Probando BarcodeDetector...')
         const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
-        const bitmap = await createImageBitmap(img)
-        const codes = await detector.detect(bitmap)
-        addLog(`BarcodeDetector: ${codes.length} códigos`)
+        const codes = await detector.detect(await createImageBitmap(img))
         if (codes.length > 0) { procesarCheckin(codes[0].rawValue); return }
       }
 
-      // 3. jsQR multiscala
+      // jsQR multiscala
       const jsQR = (await import('jsqr')).default
-      let found: { data: string } | null = null
       for (const maxPx of [600, 900, 400, 1200]) {
         const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
         const w = Math.round(img.naturalWidth * scale)
@@ -89,15 +70,12 @@ export default function CheckinPage() {
         c.width = w; c.height = h
         c.getContext('2d')!.drawImage(img, 0, 0, w, h)
         const d = c.getContext('2d')!.getImageData(0, 0, w, h)
-        found = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' })
-        addLog(`jsQR@${maxPx}: ${found ? '✅' : '❌'}`)
-        if (found?.data) break
+        const found = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' })
+        if (found?.data) { procesarCheckin(found.data); return }
       }
 
-      if (found?.data) { procesarCheckin(found.data); return }
-
       setProcesando(false)
-      setErrorMsg('No se detectó el QR')
+      setErrorMsg('No se detectó el QR. Acercate más e intentá de nuevo.')
     } catch (err: any) {
       setProcesando(false)
       setErrorMsg('Error: ' + (err?.message ?? String(err)))
@@ -106,7 +84,7 @@ export default function CheckinPage() {
   }, [])
 
   useEffect(() => {
-    if (modo !== 'scan' || resultado) { setProcesando(false); setErrorMsg(null); setDebugLines([]) }
+    if (modo !== 'scan' || resultado) { setProcesando(false); setErrorMsg(null) }
   }, [modo, resultado])
 
   const procesarCheckin = async (socioId: string) => {
@@ -261,11 +239,7 @@ export default function CheckinPage() {
               <span className="text-white font-bold text-xl">Escanear QR</span>
               <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
             </button>
-            {debugLines.length > 0 && (
-              <div className="w-full bg-gray-900 rounded-xl p-2 space-y-0.5">
-                {debugLines.map((l, i) => <p key={i} className="text-yellow-400 text-xs font-mono">{l}</p>)}
-              </div>
-            )}
+
             {errorMsg && (
               <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-2">
                 <p className="text-red-300 text-sm">{errorMsg}</p>
