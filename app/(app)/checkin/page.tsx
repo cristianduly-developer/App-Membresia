@@ -99,9 +99,12 @@ export default function CheckinPage() {
   }, [modo, resultado])
 
   const procesarCheckin = async (socioId: string) => {
-    if (!localId || procesando) return
+    if (!localId) { setErrorMsg('Sin sesión activa'); return }
+    if (procesando) return
     setProcesando(true)
+    setErrorMsg(null)
 
+    try {
     const [{ data: socio }, { data: membresias }] = await Promise.all([
       supabaseApp.from('socios').select('id, nombre, apellido, foto_url').eq('id', socioId).eq('org_id', localId).single(),
       supabaseApp.from('membresias').select('estado, fecha_vencimiento, actividades_ids').eq('socio_id', socioId).eq('org_id', localId).order('fecha_vencimiento', { ascending: false }).limit(1),
@@ -154,6 +157,10 @@ export default function CheckinPage() {
 
     setResultado({ socioId, nombre: socio.nombre, apellido: socio.apellido, foto_url: socio.foto_url, estadoMembresia, diasRestantes, actividad, yaRegistrado })
     setProcesando(false)
+    } catch (err: any) {
+      setProcesando(false)
+      setErrorMsg('Error al verificar: ' + (err?.message ?? String(err)))
+    }
   }
 
   const buscarSocio = async (q: string) => {
