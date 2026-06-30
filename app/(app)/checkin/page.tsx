@@ -32,38 +32,49 @@ export default function CheckinPage() {
   const [scannerActivo, setScannerActivo] = useState(false)
   const [errorCamara, setErrorCamara] = useState(false)
 
-  const inputFileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const readerRef = useRef<any>(null)
+  const activeRef = useRef(false)
 
   const detenerScanner = useCallback(() => {
+    activeRef.current = false
+    if (readerRef.current) { try { readerRef.current.reset() } catch {} readerRef.current = null }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
     setScannerActivo(false)
   }, [])
 
-  const handleFotoQR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setProcesando(true)
+  const iniciarScanner = useCallback(async () => {
+    if (activeRef.current) return
+    activeRef.current = true
     setErrorCamara(false)
-    const url = URL.createObjectURL(file)
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      if (!activeRef.current) { stream.getTracks().forEach(t => t.stop()); return }
+      streamRef.current = stream
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
+      setScannerActivo(true)
       const { BrowserQRCodeReader } = await import('@zxing/browser')
       const reader = new BrowserQRCodeReader()
-      const img = document.createElement('img')
-      img.src = url
-      await new Promise(r => { img.onload = r })
-      const result = await reader.decodeFromImageElement(img)
-      URL.revokeObjectURL(url)
+      readerRef.current = reader
+      const result = await reader.decodeOnceFromVideoElement(videoRef.current!)
+      if (!activeRef.current) return
+      detenerScanner()
       procesarCheckin(result.getText())
-    } catch {
-      URL.revokeObjectURL(url)
-      setProcesando(false)
+    } catch (err) {
+      if (!activeRef.current) return
+      console.error('[QR]', err)
       setErrorCamara(true)
+      setScannerActivo(false)
     }
-    if (inputFileRef.current) inputFileRef.current.value = ''
-  }, [])
+  }, [detenerScanner])
+
+  useEffect(() => { return () => { detenerScanner() } }, [detenerScanner])
 
   useEffect(() => {
-    if (modo !== 'scan' || resultado) detenerScanner()
-  }, [modo, resultado, detenerScanner])
+    if (modo === 'scan' && !resultado) iniciarScanner()
+    else detenerScanner()
+  }, [modo, resultado])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -295,36 +306,47 @@ export default function CheckinPage() {
 
         {!procesando && modo === 'scan' && (
           <div className="flex flex-col items-center gap-4">
-            {/* Input oculto que abre la cámara nativa */}
-            <input
-              ref={inputFileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleFotoQR}
-            />
-
-            {/* Botón grande para abrir cámara */}
-            <button
-              onClick={() => { setErrorCamara(false); inputFileRef.current?.click() }}
-              className="w-full aspect-square max-w-xs rounded-2xl bg-gray-900 border-2 border-dashed border-violet-700 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
-            >
-              <span className="text-6xl">📷</span>
-              <span className="text-white font-bold text-lg">Escanear QR</span>
-              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
-            </button>
+            {/* Visor de cámara en vivo */}
+            <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {/* Marco de escaneo */}
+              {scannerActivo && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-40 h-40 border-2 border-violet-400 rounded-xl opacity-70" />
+                </div>
+              )}
+              {!scannerActivo && !errorCamara && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-gray-400 text-sm">Iniciando cámara...</p>
+                </div>
+              )}
+            </div>
+            <p className="text-gray-500 text-sm text-center">Apuntá la cámara al código QR del socio</p>
 
             {errorCamara && (
               <div className="text-center">
-                <p className="text-red-400 text-sm mb-2">No se pudo leer el QR</p>
-                <p className="text-gray-500 text-xs mb-3">Asegurate de enfocar bien el código</p>
-                <button
-                  onClick={() => { setErrorCamara(false); setModo('manual') }}
-                  className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
-                >
-                  Usar modo manual
-                </button>
+                <p className="text-red-400 text-sm mb-2">No se pudo acceder a la cámara</p>
+                <p className="text-gray-500 text-xs mb-3">Verificá los permisos en el navegador</p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => iniciarScanner()}
+                    className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white"
+                  >
+                    Reintentar
+                  </button>
+                  <button
+                    onClick={() => { setErrorCamara(false); setModo('manual') }}
+                    className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
+                  >
+                    Modo manual
+                  </button>
+                </div>
               </div>
             )}
           </div>
