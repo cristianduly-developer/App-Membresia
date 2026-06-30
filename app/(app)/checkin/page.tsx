@@ -31,49 +31,43 @@ export default function CheckinPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const inputFileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const readerRef = useRef<any>(null)
+  const activeRef = useRef(false)
 
-  const handleFotoQR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setProcesando(true)
-    setErrorMsg(null)
-
-    try {
-      const jsQR = (await import('jsqr')).default
-
-      const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.src = url
-
-      await new Promise<void>((res, rej) => {
-        img.onload = () => res()
-        img.onerror = () => rej(new Error('imagen'))
-      })
-
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      URL.revokeObjectURL(url)
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const code = jsQR(imageData.data, canvas.width, canvas.height)
-
-      if (code?.data) {
-        procesarCheckin(code.data)
-      } else {
-        setProcesando(false)
-        setErrorMsg('No se detectó un QR. Intentá con mejor iluminación o más cerca.')
-      }
-    } catch {
-      setProcesando(false)
-      setErrorMsg('Error al procesar la imagen.')
-    }
-
-    if (inputFileRef.current) inputFileRef.current.value = ''
+  const detenerScanner = useCallback(() => {
+    activeRef.current = false
+    if (readerRef.current) { try { readerRef.current.reset() } catch {} readerRef.current = null }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
   }, [])
+
+  const iniciarScanner = useCallback(async () => {
+    if (activeRef.current) return
+    activeRef.current = true
+    setErrorMsg(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } })
+      if (!activeRef.current) { stream.getTracks().forEach(t => t.stop()); return }
+      streamRef.current = stream
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
+      const { BrowserQRCodeReader } = await import('@zxing/browser')
+      const reader = new BrowserQRCodeReader()
+      readerRef.current = reader
+      const result = await reader.decodeOnceFromVideoElement(videoRef.current!)
+      if (!activeRef.current) return
+      detenerScanner()
+      procesarCheckin(result.getText())
+    } catch (err: any) {
+      if (!activeRef.current) return
+      detenerScanner()
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setErrorMsg('PERMISO_DENEGADO')
+      } else {
+        setErrorMsg('No se pudo acceder a la cámara.')
+      }
+    }
+  }, [detenerScanner])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -139,6 +133,10 @@ export default function CheckinPage() {
     const { data } = await supabaseApp.from('socios').select('id, nombre, apellido').eq('org_id', localId).or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%`).limit(8)
     setSocios((data ?? []) as any)
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (modo === 'scan' && !resultado) iniciarScanner(); else detenerScanner() }, [modo, resultado])
+  useEffect(() => () => { detenerScanner() }, [detenerScanner])
 
   const resetear = () => {
     setResultado(null)
@@ -209,26 +207,42 @@ export default function CheckinPage() {
         )}
 
         {!procesando && modo === 'scan' && (
-          <div className="flex flex-col items-center gap-5">
-            <input ref={inputFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoQR} />
-
-            <button
-              onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }}
-              className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
-            >
-              <span className="text-7xl">📷</span>
-              <span className="text-white font-bold text-xl">Escanear QR</span>
-              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
-            </button>
-
-            {errorMsg && (
-              <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-3">
-                <p className="text-red-300 text-sm">{errorMsg}</p>
-                <button onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }} className="px-5 py-2 bg-violet-700 rounded-xl text-sm text-white font-semibold">Intentar de nuevo</button>
+          <div className="flex flex-col items-center gap-4">
+            {errorMsg === 'PERMISO_DENEGADO' ? (
+              <div className="w-full bg-gray-900 border border-gray-700 rounded-2xl p-5 space-y-4">
+                <p className="text-red-400 font-semibold text-center">Permiso de cámara denegado</p>
+                <div className="text-gray-400 text-sm space-y-1.5">
+                  <p className="text-gray-300 font-medium">En Android:</p>
+                  <p>1. Ajustes → Apps → Chrome → Permisos → Cámara → <strong>Permitir</strong></p>
+                  <p className="text-gray-300 font-medium mt-2">En iPhone:</p>
+                  <p>1. Ajustes → Chrome → Cámara → <strong>Activar</strong></p>
+                </div>
+                <button onClick={() => { setErrorMsg(null); iniciarScanner() }} className="w-full py-3 bg-violet-700 rounded-xl text-white text-sm font-semibold">Ya lo activé — reintentar</button>
+                <button onClick={() => setModo('manual')} className="w-full py-2.5 bg-gray-800 rounded-xl text-gray-400 text-sm">Usar modo manual</button>
               </div>
+            ) : (
+              <>
+                <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
+                  <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-44 h-44 border-2 border-violet-400 rounded-xl" />
+                  </div>
+                  {!streamRef.current && !errorMsg && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
+                      <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-gray-400 text-sm">Iniciando cámara...</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-gray-500 text-sm text-center">Apuntá al código QR del socio</p>
+                {errorMsg && (
+                  <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-3">
+                    <p className="text-red-300 text-sm">{errorMsg}</p>
+                    <button onClick={() => iniciarScanner()} className="px-5 py-2 bg-violet-700 rounded-xl text-sm text-white font-semibold">Reintentar</button>
+                  </div>
+                )}
+              </>
             )}
-
-            <p className="text-gray-600 text-xs text-center">Tip: enfocá bien el QR y asegurate de tener buena luz</p>
           </div>
         )}
 
