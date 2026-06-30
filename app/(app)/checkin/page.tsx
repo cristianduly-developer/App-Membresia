@@ -232,7 +232,7 @@ export default function CheckinPage() {
           <div className="flex flex-col items-center gap-4">
             <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
             <button
-              onClick={() => { setErrorMsg(null); setDebugLines([]); inputRef.current?.click() }}
+              onClick={() => { setErrorMsg(null); inputRef.current?.click() }}
               className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
             >
               <span className="text-7xl">📷</span>
