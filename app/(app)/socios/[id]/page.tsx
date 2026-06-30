@@ -48,6 +48,7 @@ export default function FichaSocioPage() {
   const params = useParams()
   const id = params.id as string
 
+  const { nombreNegocio } = useSession()
   const [socio, setSocio] = useState<Socio | null>(null)
   const [historial, setHistorial] = useState<HistorialRapido | null>(null)
   const [loading, setLoading] = useState(true)
@@ -60,11 +61,42 @@ export default function FichaSocioPage() {
   }, [localId, id])
 
   useEffect(() => {
-    if (!mostrarQR || !qrCanvasRef.current || !id) return
-    import('qrcode').then(QRCode => {
-      QRCode.toCanvas(qrCanvasRef.current!, id, { width: 220, margin: 2, color: { dark: '#ffffff', light: '#0a0a0a' } })
+    if (!mostrarQR || !qrCanvasRef.current || !id || !socio) return
+    import('qrcode').then(async QRCode => {
+      const qrSize = 220
+      const paddingTop = 48
+      const paddingBottom = 52
+      const canvasWidth = qrSize
+      const canvasHeight = qrSize + paddingTop + paddingBottom
+
+      const canvas = qrCanvasRef.current!
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
+
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#0a0a0a'
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+      // QR en canvas temporal
+      const tmpCanvas = document.createElement('canvas')
+      await QRCode.toCanvas(tmpCanvas, id, { width: qrSize, margin: 1, color: { dark: '#ffffff', light: '#0a0a0a' } })
+      ctx.drawImage(tmpCanvas, 0, paddingTop)
+
+      // Nombre del negocio arriba
+      ctx.fillStyle = '#a78bfa'
+      ctx.font = 'bold 14px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText((nombreNegocio || 'SocioApp').toUpperCase(), canvasWidth / 2, 22)
+
+      // Nombre del socio + "Check-in" abajo
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 13px sans-serif'
+      ctx.fillText(`${socio.nombre} ${socio.apellido}`, canvasWidth / 2, qrSize + paddingTop + 20)
+      ctx.fillStyle = '#6b7280'
+      ctx.font = '11px sans-serif'
+      ctx.fillText('Presentá este código en recepción', canvasWidth / 2, qrSize + paddingTop + 38)
     })
-  }, [mostrarQR, id])
+  }, [mostrarQR, id, socio, nombreNegocio])
 
   const cargarDatos = async () => {
     setLoading(true)
