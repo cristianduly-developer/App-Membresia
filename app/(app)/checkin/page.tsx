@@ -42,23 +42,22 @@ export default function CheckinPage() {
     const file = e.target.files?.[0]
     if (!file) return
     setProcesando(true)
+    setErrorCamara(false)
+    const url = URL.createObjectURL(file)
     try {
       const { BrowserQRCodeReader } = await import('@zxing/browser')
       const reader = new BrowserQRCodeReader()
-      const img = new Image()
-      img.src = URL.createObjectURL(file)
+      const img = document.createElement('img')
+      img.src = url
       await new Promise(r => { img.onload = r })
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
-      canvas.getContext('2d')!.drawImage(img, 0, 0)
-      const result = await reader.decodeFromCanvas(canvas)
+      const result = await reader.decodeFromImageElement(img)
+      URL.revokeObjectURL(url)
       procesarCheckin(result.getText())
     } catch {
+      URL.revokeObjectURL(url)
       setProcesando(false)
       setErrorCamara(true)
     }
-    // reset input para permitir volver a escanear
     if (inputFileRef.current) inputFileRef.current.value = ''
   }, [])
 
