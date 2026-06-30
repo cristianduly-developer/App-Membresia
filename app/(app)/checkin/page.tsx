@@ -31,37 +31,63 @@ export default function CheckinPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const scannerRef = useRef<any>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
+  const activoRef = useRef(false)
   const [camaraIniciada, setCamaraIniciada] = useState(false)
 
-  const detener = useCallback(async () => {
-    if (scannerRef.current) {
-      try { await scannerRef.current.stop() } catch {}
-      try { scannerRef.current.clear() } catch {}
-      scannerRef.current = null
-    }
+  const detener = useCallback(() => {
+    activoRef.current = false
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
     setCamaraIniciada(false)
   }, [])
 
   const iniciarConGesto = useCallback(async () => {
+    if (activoRef.current) { activoRef.current = false }
     setErrorMsg(null)
     setCamaraIniciada(true)
     try {
-      const { Html5Qrcode } = await import('html5-qrcode')
-      const scanner = new Html5Qrcode('qr-reader')
-      scannerRef.current = scanner
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (text) => { detener(); procesarCheckin(text) },
-        () => {}
-      )
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      })
+      activoRef.current = true
+      streamRef.current = stream
+      const video = videoRef.current!
+      video.srcObject = stream
+      await video.play()
+
+      const jsQR = (await import('jsqr')).default
+      const canvas = canvasRef.current!
+
+      const tick = () => {
+        if (!activoRef.current) return
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(video, 0, 0)
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' })
+          if (code?.data) {
+            detener()
+            procesarCheckin(code.data)
+            return
+          }
+        }
+        rafRef.current = requestAnimationFrame(tick)
+      }
+      rafRef.current = requestAnimationFrame(tick)
     } catch (err: any) {
-      setCamaraIniciada(false)
-      if (err?.toString().includes('NotAllowed') || err?.toString().includes('Permission')) {
-        setErrorMsg('PERMISO')
+      detener()
+      const msg = err?.name ?? err?.toString() ?? ''
+      if (msg.includes('NotAllowed') || msg.includes('Permission')) {
+        setErrorMsg('Permiso denegado. Habilitá la cámara en ajustes de Chrome.')
       } else {
-        setErrorMsg('No se pudo acceder a la cámara: ' + (err?.message ?? err))
+        setErrorMsg('Error: ' + (err?.message ?? msg))
       }
     }
   }, [detener])
@@ -70,7 +96,7 @@ export default function CheckinPage() {
     if (modo !== 'scan' || resultado) detener()
   }, [modo, resultado])
 
-  useEffect(() => () => { detener() }, [])
+  useEffect(() => () => detener(), [])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -208,14 +234,7 @@ export default function CheckinPage() {
 
         {!procesando && modo === 'scan' && (
           <div className="flex flex-col items-center gap-4">
-            {errorMsg === 'PERMISO' ? (
-              <div className="w-full bg-gray-900 border border-gray-700 rounded-2xl p-5 space-y-3 text-sm">
-                <p className="text-red-400 font-semibold text-center">Permiso de cámara denegado</p>
-                <p className="text-gray-400">En Chrome Android: entrá a <strong className="text-white">chrome://settings/content/camera</strong> en la barra de dirección, buscá este sitio en Bloqueados y cambialo a Permitir.</p>
-                <button onClick={iniciarConGesto} className="w-full py-3 bg-violet-700 rounded-xl text-white font-semibold">Reintentar</button>
-                <button onClick={() => setModo('manual')} className="w-full py-2.5 bg-gray-800 rounded-xl text-gray-400">Usar modo manual</button>
-              </div>
-            ) : !camaraIniciada ? (
+            {!camaraIniciada ? (
               <button
                 onClick={iniciarConGesto}
                 className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
@@ -226,7 +245,13 @@ export default function CheckinPage() {
               </button>
             ) : (
               <>
-                <div id="qr-reader" className="w-full max-w-xs rounded-2xl overflow-hidden border-2 border-violet-700 [&>video]:w-full [&_img]:hidden [&>div:last-child]:hidden" />
+                <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
+                  <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+                  <canvas ref={canvasRef} className="hidden" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-44 h-44 border-2 border-violet-400 rounded-xl opacity-80" />
+                  </div>
+                </div>
                 <p className="text-gray-500 text-sm text-center">Apuntá al QR del socio</p>
                 <button onClick={detener} className="text-gray-600 text-xs underline">Cancelar</button>
                 {errorMsg && (
