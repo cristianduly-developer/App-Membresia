@@ -67,7 +67,7 @@ export default function CheckinPage() {
       URL.revokeObjectURL(url)
       setDebugInfo(d => d + ` | img ${img.naturalWidth}x${img.naturalHeight}`)
 
-      let code = null
+      let code: { data: string } | null = null
       for (const maxPx of [800, 1200, 400, 2000]) {
         const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
         const w = Math.round(img.naturalWidth * scale)
