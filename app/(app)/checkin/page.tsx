@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -31,60 +31,65 @@ export default function CheckinPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const inputFileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
+  const activoRef = useRef(false)
 
-  const handleFotoQR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setProcesando(true)
-    setErrorMsg(null)
-
-    try {
-      const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.src = url
-      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej() })
-      URL.revokeObjectURL(url)
-
-      // Intentar BarcodeDetector nativo (Chrome Android — mismo motor que la cámara del sistema)
-      if ('BarcodeDetector' in window) {
-        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
-        const bitmap = await createImageBitmap(img)
-        const codes = await detector.detect(bitmap)
-        if (codes.length > 0) {
-          procesarCheckin(codes[0].rawValue)
-          return
-        }
-      }
-
-      // Fallback: jsQR con múltiples escalas
-      const jsQR = (await import('jsqr')).default
-      const sizes = [800, 1200, 400]
-      let code = null
-      for (const maxSize of sizes) {
-        const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight))
-        const w = Math.round(img.naturalWidth * scale)
-        const h = Math.round(img.naturalHeight * scale)
-        const canvas = document.createElement('canvas')
-        canvas.width = w; canvas.height = h
-        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-        const data = canvas.getContext('2d')!.getImageData(0, 0, w, h)
-        code = jsQR(data.data, w, h, { inversionAttempts: 'attemptBoth' })
-        if (code?.data) break
-      }
-
-      if (code?.data) {
-        procesarCheckin(code.data)
-      } else {
-        setProcesando(false)
-        setErrorMsg('No se detectó el QR. Acercate más y asegurate de que esté bien iluminado.')
-      }
-    } catch {
-      setProcesando(false)
-      setErrorMsg('Error al procesar la imagen.')
-    }
-    if (inputFileRef.current) inputFileRef.current.value = ''
+  const detener = useCallback(() => {
+    activoRef.current = false
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
   }, [])
+
+  const iniciar = useCallback(async () => {
+    if (activoRef.current) return
+    activoRef.current = true
+    setErrorMsg(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      if (!activoRef.current) { stream.getTracks().forEach(t => t.stop()); return }
+      streamRef.current = stream
+      const video = videoRef.current!
+      video.srcObject = stream
+      await video.play()
+
+      const jsQR = (await import('jsqr')).default
+      const canvas = canvasRef.current!
+
+      const tick = () => {
+        if (!activoRef.current) return
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(video, 0, 0)
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
+          if (code?.data) {
+            detener()
+            procesarCheckin(code.data)
+            return
+          }
+        }
+        rafRef.current = requestAnimationFrame(tick)
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    } catch (err: any) {
+      detener()
+      if (err?.name === 'NotAllowedError') setErrorMsg('PERMISO')
+      else setErrorMsg('No se pudo acceder a la cámara.')
+    }
+  }, [detener])
+
+  useEffect(() => {
+    if (modo === 'scan' && !resultado) iniciar()
+    else detener()
+  }, [modo, resultado])
+
+  useEffect(() => () => detener(), [])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -221,29 +226,38 @@ export default function CheckinPage() {
         )}
 
         {!procesando && modo === 'scan' && (
-          <div className="flex flex-col items-center gap-5">
-            <input ref={inputFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoQR} />
-
-            <button
-              onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }}
-              className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
-            >
-              <span className="text-7xl">📷</span>
-              <span className="text-white font-bold text-xl">Escanear QR</span>
-              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
-            </button>
-
-            {errorMsg && (
-              <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-3">
-                <p className="text-red-300 text-sm">{errorMsg}</p>
-                <div className="flex gap-2 justify-center">
-                  <button onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
-                  <button onClick={() => setModo('manual')} className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white">Modo manual</button>
-                </div>
+          <div className="flex flex-col items-center gap-4">
+            {errorMsg === 'PERMISO' ? (
+              <div className="w-full bg-gray-900 border border-gray-700 rounded-2xl p-5 space-y-3 text-sm">
+                <p className="text-red-400 font-semibold text-center">Permiso de cámara denegado</p>
+                <p className="text-gray-400">En Chrome Android: entrá a <strong className="text-white">chrome://settings/content/camera</strong> en la barra de dirección, buscá este sitio en Bloqueados y cambialo a Permitir.</p>
+                <button onClick={() => iniciar()} className="w-full py-3 bg-violet-700 rounded-xl text-white font-semibold">Reintentar</button>
+                <button onClick={() => setModo('manual')} className="w-full py-2.5 bg-gray-800 rounded-xl text-gray-400">Usar modo manual</button>
               </div>
+            ) : (
+              <>
+                <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
+                  <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+                  <canvas ref={canvasRef} className="hidden" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-44 h-44 border-2 border-violet-400 rounded-xl opacity-80" />
+                  </div>
+                  {!streamRef.current && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70">
+                      <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-gray-400 text-sm">Iniciando cámara...</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-gray-500 text-sm text-center">Apuntá al QR del socio</p>
+                {errorMsg && (
+                  <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-2">
+                    <p className="text-red-300 text-sm">{errorMsg}</p>
+                    <button onClick={() => iniciar()} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
+                  </div>
+                )}
+              </>
             )}
-
-            <p className="text-gray-600 text-xs text-center">Apuntá bien al QR con buena iluminación</p>
           </div>
         )}
 
