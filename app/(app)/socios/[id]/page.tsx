@@ -199,7 +199,42 @@ export default function FichaSocioPage() {
               <h3 className="text-white font-bold text-lg">{socio.nombre} {socio.apellido}</h3>
               <canvas ref={qrCanvasRef} className="rounded-xl" />
               <p className="text-gray-500 text-xs text-center">Mostrá este código en el check-in</p>
-              <button onClick={() => setMostrarQR(false)} className="w-full py-2.5 bg-gray-800 text-white rounded-xl text-sm">Cerrar</button>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => {
+                    const canvas = qrCanvasRef.current
+                    if (!canvas) return
+                    const link = document.createElement('a')
+                    link.download = `qr-${socio.nombre}-${socio.apellido}.png`
+                    link.href = canvas.toDataURL()
+                    link.click()
+                  }}
+                  className="flex-1 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold"
+                >
+                  ⬇️ Descargar
+                </button>
+                {socio.telefono && (
+                  <button
+                    onClick={() => {
+                      const canvas = qrCanvasRef.current
+                      if (!canvas) return
+                      canvas.toBlob(blob => {
+                        if (!blob) return
+                        const file = new File([blob], `qr-${socio.nombre}.png`, { type: 'image/png' })
+                        if (navigator.share && navigator.canShare({ files: [file] })) {
+                          navigator.share({ files: [file], title: `QR de ${socio.nombre} ${socio.apellido}` })
+                        } else {
+                          window.open(`https://wa.me/${socio.telefono?.replace(/\D/g, '')}`, '_blank')
+                        }
+                      })
+                    }}
+                    className="flex-1 py-2.5 bg-green-700 text-white rounded-xl text-sm font-semibold"
+                  >
+                    💬 Enviar
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setMostrarQR(false)} className="w-full py-2.5 bg-gray-900 text-gray-400 rounded-xl text-sm">Cerrar</button>
             </div>
           </div>
         )}
