@@ -31,77 +31,72 @@ export default function CheckinPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const rafRef = useRef<number>(0)
-  const activoRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [debugInfo, setDebugInfo] = useState('')
 
-  const detener = useCallback(() => {
-    activoRef.current = false
-    cancelAnimationFrame(rafRef.current)
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
+  const handleFoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setProcesando(true)
+    setErrorMsg(null)
+    setDebugInfo(`Archivo: ${file.name} ${Math.round(file.size/1024)}KB`)
+
+    try {
+      // BarcodeDetector — motor nativo de Android, mismo que la cámara del sistema
+      if ('BarcodeDetector' in window) {
+        setDebugInfo(d => d + ' | BarcodeDetector disponible')
+        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+        const bitmap = await createImageBitmap(file)
+        setDebugInfo(d => d + ` | bitmap ${bitmap.width}x${bitmap.height}`)
+        const codes = await detector.detect(bitmap)
+        setDebugInfo(d => d + ` | códigos: ${codes.length}`)
+        if (codes.length > 0) {
+          procesarCheckin(codes[0].rawValue)
+          return
+        }
+      } else {
+        setDebugInfo(d => d + ' | BarcodeDetector NO disponible, usando jsQR')
+      }
+
+      // Fallback jsQR con múltiples escalas
+      const jsQR = (await import('jsqr')).default
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.src = url
+      await new Promise<void>(res => { img.onload = () => res() })
+      URL.revokeObjectURL(url)
+      setDebugInfo(d => d + ` | img ${img.naturalWidth}x${img.naturalHeight}`)
+
+      let code = null
+      for (const maxPx of [800, 1200, 400, 2000]) {
+        const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
+        const w = Math.round(img.naturalWidth * scale)
+        const h = Math.round(img.naturalHeight * scale)
+        const c = document.createElement('canvas')
+        c.width = w; c.height = h
+        c.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        const data = c.getContext('2d')!.getImageData(0, 0, w, h)
+        code = jsQR(data.data, w, h, { inversionAttempts: 'attemptBoth' })
+        setDebugInfo(d => d + ` | jsQR@${maxPx}: ${code ? '✅' : '❌'}`)
+        if (code?.data) break
+      }
+
+      if (code?.data) {
+        procesarCheckin(code.data)
+      } else {
+        setProcesando(false)
+        setErrorMsg('No se detectó el QR.')
+      }
+    } catch (err: any) {
+      setProcesando(false)
+      setErrorMsg('Error: ' + (err?.message ?? String(err)))
+    }
+    if (inputRef.current) inputRef.current.value = ''
   }, [])
 
-  const iniciar = useCallback(async () => {
-    if (activoRef.current) return
-    activoRef.current = true
-    setErrorMsg(null)
-    setDebugInfo('Solicitando cámara...')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      })
-      if (!activoRef.current) { stream.getTracks().forEach(t => t.stop()); return }
-      streamRef.current = stream
-      const video = videoRef.current!
-      video.srcObject = stream
-      await video.play()
-      setDebugInfo('Cámara activa, cargando jsQR...')
-
-      const jsQR = (await import('jsqr')).default
-      const canvas = canvasRef.current!
-      const ctx = canvas.getContext('2d')!
-      let frames = 0
-
-      const tick = () => {
-        if (!activoRef.current) return
-        frames++
-        const w = video.videoWidth
-        const h = video.videoHeight
-
-        if (w > 0 && h > 0 && video.readyState >= 2) {
-          canvas.width = w
-          canvas.height = h
-          ctx.drawImage(video, 0, 0, w, h)
-          const imageData = ctx.getImageData(0, 0, w, h)
-          const code = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' })
-          if (frames % 30 === 0) setDebugInfo(`Frame ${frames} | ${w}x${h} | ${code ? '✅ QR: ' + code.data.slice(0, 20) : '❌ sin QR'}`)
-          if (code?.data) {
-            detener()
-            procesarCheckin(code.data)
-            return
-          }
-        } else {
-          if (frames % 10 === 0) setDebugInfo(`Esperando video... readyState=${video.readyState} ${w}x${h}`)
-        }
-        rafRef.current = requestAnimationFrame(tick)
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    } catch (err: any) {
-      detener()
-      setErrorMsg('Error: ' + (err?.message ?? err?.name ?? String(err)))
-    }
-  }, [detener])
-
   useEffect(() => {
-    if (modo === 'scan' && !resultado) iniciar()
-    else detener()
+    if (modo !== 'scan' || resultado) { setProcesando(false); setErrorMsg(null); setDebugInfo('') }
   }, [modo, resultado])
-
-  useEffect(() => () => detener(), [])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -239,21 +234,21 @@ export default function CheckinPage() {
 
         {!procesando && modo === 'scan' && (
           <div className="flex flex-col items-center gap-4">
-            <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
-              <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
-              <canvas ref={canvasRef} className="hidden" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-44 h-44 border-2 border-violet-400 rounded-xl opacity-80" />
-              </div>
-            </div>
-            <p className="text-gray-500 text-sm text-center">Apuntá al QR del socio</p>
-            {/* Debug info — sacar en producción */}
-            <p className="text-yellow-400 text-xs text-center font-mono px-2">{debugInfo}</p>
+            <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
+            <button
+              onClick={() => { setErrorMsg(null); setDebugInfo(''); inputRef.current?.click() }}
+              className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
+            >
+              <span className="text-7xl">📷</span>
+              <span className="text-white font-bold text-xl">Escanear QR</span>
+              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
+            </button>
+            {debugInfo && <p className="text-yellow-400 text-xs font-mono px-2 break-all">{debugInfo}</p>}
             {errorMsg && (
               <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-2">
                 <p className="text-red-300 text-sm">{errorMsg}</p>
                 <div className="flex gap-2 justify-center">
-                  <button onClick={() => { detener(); setTimeout(iniciar, 100) }} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
+                  <button onClick={() => { setErrorMsg(null); inputRef.current?.click() }} className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white">Reintentar</button>
                   <button onClick={() => setModo('manual')} className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white">Manual</button>
                 </div>
               </div>
