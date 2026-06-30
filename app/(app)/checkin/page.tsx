@@ -330,12 +330,17 @@ export default function CheckinPage() {
             <p className="text-gray-500 text-sm text-center">Apuntá la cámara al código QR del socio</p>
 
             {errorCamara && (
-              <div className="text-center">
-                <p className="text-red-400 text-sm mb-2">No se pudo acceder a la cámara</p>
-                <p className="text-gray-500 text-xs mb-3">Verificá los permisos en el navegador</p>
+              <div className="w-full text-center space-y-3">
+                <p className="text-red-400 text-sm font-semibold">No se pudo acceder a la cámara</p>
+                <div className="bg-gray-900 border border-gray-700 rounded-xl p-3 text-left text-xs text-gray-400 space-y-1">
+                  <p className="text-gray-300 font-medium mb-2">Para habilitar la cámara en Chrome:</p>
+                  <p>1. Tocá el 🔒 en la barra de dirección</p>
+                  <p>2. Tocá <strong>Permisos → Cámara</strong></p>
+                  <p>3. Cambiá a <strong>Permitir</strong> y recargá</p>
+                </div>
                 <div className="flex gap-2 justify-center">
                   <button
-                    onClick={() => iniciarScanner()}
+                    onClick={() => { setErrorCamara(false); iniciarScanner() }}
                     className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white"
                   >
                     Reintentar
