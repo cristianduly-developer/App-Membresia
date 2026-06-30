@@ -32,54 +32,39 @@ export default function CheckinPage() {
   const [scannerActivo, setScannerActivo] = useState(false)
   const [errorCamara, setErrorCamara] = useState(false)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const readerRef = useRef<any>(null)
-  const activeRef = useRef(false)
+  const inputFileRef = useRef<HTMLInputElement>(null)
 
   const detenerScanner = useCallback(() => {
-    activeRef.current = false
-    if (readerRef.current) {
-      try { readerRef.current.reset() } catch {}
-      readerRef.current = null
-    }
     setScannerActivo(false)
   }, [])
 
-  const iniciarScanner = useCallback(async () => {
-    if (activeRef.current) return
-    activeRef.current = true
-    setErrorCamara(false)
+  const handleFotoQR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setProcesando(true)
     try {
       const { BrowserQRCodeReader } = await import('@zxing/browser')
       const reader = new BrowserQRCodeReader()
-      readerRef.current = reader
-      setScannerActivo(true)
-      const result = await reader.decodeOnceFromConstraints(
-        { video: { facingMode: 'environment' } },
-        videoRef.current!
-      )
-      if (!activeRef.current) return
-      detenerScanner()
+      const img = new Image()
+      img.src = URL.createObjectURL(file)
+      await new Promise(r => { img.onload = r })
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      canvas.getContext('2d')!.drawImage(img, 0, 0)
+      const result = await reader.decodeFromCanvas(canvas)
       procesarCheckin(result.getText())
-    } catch (err: any) {
-      if (!activeRef.current) return
-      console.error('[QR] Error:', err)
+    } catch {
+      setProcesando(false)
       setErrorCamara(true)
-      setScannerActivo(false)
     }
-  }, [detenerScanner])
+    // reset input para permitir volver a escanear
+    if (inputFileRef.current) inputFileRef.current.value = ''
+  }, [])
 
   useEffect(() => {
-    return () => { detenerScanner() }
-  }, [detenerScanner])
-
-  useEffect(() => {
-    if (modo === 'scan' && !resultado) {
-      iniciarScanner()
-    } else {
-      detenerScanner()
-    }
-  }, [modo, resultado])
+    if (modo !== 'scan' || resultado) detenerScanner()
+  }, [modo, resultado, detenerScanner])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -310,36 +295,38 @@ export default function CheckinPage() {
         )}
 
         {!procesando && modo === 'scan' && (
-          <div>
-            <div className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 aspect-square relative">
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              {/* Marco guía */}
-              {scannerActivo && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-48 border-2 border-violet-400 rounded-2xl opacity-70" />
-                </div>
-              )}
-            </div>
-            {errorCamara ? (
-              <div className="mt-3 text-center">
-                <p className="text-red-400 text-sm mb-2">No se pudo acceder a la cámara</p>
-                <p className="text-gray-500 text-xs">Verificá que el navegador tenga permiso de cámara, o usá el modo manual</p>
+          <div className="flex flex-col items-center gap-4">
+            {/* Input oculto que abre la cámara nativa */}
+            <input
+              ref={inputFileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFotoQR}
+            />
+
+            {/* Botón grande para abrir cámara */}
+            <button
+              onClick={() => { setErrorCamara(false); inputFileRef.current?.click() }}
+              className="w-full aspect-square max-w-xs rounded-2xl bg-gray-900 border-2 border-dashed border-violet-700 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
+            >
+              <span className="text-6xl">📷</span>
+              <span className="text-white font-bold text-lg">Escanear QR</span>
+              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
+            </button>
+
+            {errorCamara && (
+              <div className="text-center">
+                <p className="text-red-400 text-sm mb-2">No se pudo leer el QR</p>
+                <p className="text-gray-500 text-xs mb-3">Asegurate de enfocar bien el código</p>
                 <button
                   onClick={() => { setErrorCamara(false); setModo('manual') }}
-                  className="mt-3 px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
+                  className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
                 >
                   Usar modo manual
                 </button>
               </div>
-            ) : (
-              <p className="text-center text-gray-500 text-sm mt-3">
-                Apuntá la cámara al código QR del socio
-              </p>
             )}
           </div>
         )}
