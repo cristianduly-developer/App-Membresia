@@ -31,72 +31,46 @@ export default function CheckinPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const rafRef = useRef<number>(0)
-  const activoRef = useRef(false)
+  const scannerRef = useRef<any>(null)
+  const [camaraIniciada, setCamaraIniciada] = useState(false)
 
-  const detener = useCallback(() => {
-    activoRef.current = false
-    cancelAnimationFrame(rafRef.current)
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
+  const detener = useCallback(async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop() } catch {}
+      try { scannerRef.current.clear() } catch {}
+      scannerRef.current = null
+    }
+    setCamaraIniciada(false)
   }, [])
 
-  const iniciar = useCallback(async () => {
-    if (activoRef.current) return
-    activoRef.current = true
+  const iniciarConGesto = useCallback(async () => {
     setErrorMsg(null)
+    setCamaraIniciada(true)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      if (!activoRef.current) { stream.getTracks().forEach(t => t.stop()); return }
-      streamRef.current = stream
-      const video = videoRef.current!
-      video.srcObject = stream
-      await video.play()
-
-      const jsQR = (await import('jsqr')).default
-      const canvas = canvasRef.current!
-
-      const tick = () => {
-        if (!activoRef.current) return
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          const ctx = canvas.getContext('2d')!
-          ctx.drawImage(video, 0, 0)
-          const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
-          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
-          if (code?.data) {
-            detener()
-            procesarCheckin(code.data)
-            return
-          }
-        }
-        rafRef.current = requestAnimationFrame(tick)
-      }
-      rafRef.current = requestAnimationFrame(tick)
+      const { Html5Qrcode } = await import('html5-qrcode')
+      const scanner = new Html5Qrcode('qr-reader')
+      scannerRef.current = scanner
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (text) => { detener(); procesarCheckin(text) },
+        () => {}
+      )
     } catch (err: any) {
-      detener()
-      if (err?.name === 'NotAllowedError') setErrorMsg('PERMISO')
-      else setErrorMsg('No se pudo acceder a la cámara.')
+      setCamaraIniciada(false)
+      if (err?.toString().includes('NotAllowed') || err?.toString().includes('Permission')) {
+        setErrorMsg('PERMISO')
+      } else {
+        setErrorMsg('No se pudo acceder a la cámara: ' + (err?.message ?? err))
+      }
     }
   }, [detener])
 
-  const [camaraIniciada, setCamaraIniciada] = useState(false)
-
-  const iniciarConGesto = useCallback(() => {
-    setCamaraIniciada(true)
-    activoRef.current = false  // reset por si quedó en estado anterior
-    iniciar()
-  }, [iniciar])
-
   useEffect(() => {
-    if (modo !== 'scan' || resultado) { detener(); setCamaraIniciada(false) }
+    if (modo !== 'scan' || resultado) detener()
   }, [modo, resultado])
 
-  useEffect(() => () => detener(), [])
+  useEffect(() => () => { detener() }, [])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -252,20 +226,9 @@ export default function CheckinPage() {
               </button>
             ) : (
               <>
-                <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
-                  <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
-                  <canvas ref={canvasRef} className="hidden" />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-44 h-44 border-2 border-violet-400 rounded-xl opacity-80" />
-                  </div>
-                  {!streamRef.current && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70">
-                      <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-gray-400 text-sm">Iniciando cámara...</p>
-                    </div>
-                  )}
-                </div>
+                <div id="qr-reader" className="w-full max-w-xs rounded-2xl overflow-hidden border-2 border-violet-700 [&>video]:w-full [&_img]:hidden [&>div:last-child]:hidden" />
                 <p className="text-gray-500 text-sm text-center">Apuntá al QR del socio</p>
+                <button onClick={detener} className="text-gray-600 text-xs underline">Cancelar</button>
                 {errorMsg && (
                   <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-2">
                     <p className="text-red-300 text-sm">{errorMsg}</p>
