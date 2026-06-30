@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -29,52 +29,51 @@ export default function CheckinPage() {
   const [socios, setSocios] = useState<{ id: string; nombre: string; apellido: string }[]>([])
   const [resultado, setResultado] = useState<ResultadoCheckin | null>(null)
   const [procesando, setProcesando] = useState(false)
-  const [scannerActivo, setScannerActivo] = useState(false)
-  const [errorCamara, setErrorCamara] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const readerRef = useRef<any>(null)
-  const activeRef = useRef(false)
+  const inputFileRef = useRef<HTMLInputElement>(null)
 
-  const detenerScanner = useCallback(() => {
-    activeRef.current = false
-    if (readerRef.current) { try { readerRef.current.reset() } catch {} readerRef.current = null }
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
-    setScannerActivo(false)
-  }, [])
+  const handleFotoQR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setProcesando(true)
+    setErrorMsg(null)
 
-  const iniciarScanner = useCallback(async () => {
-    if (activeRef.current) return
-    activeRef.current = true
-    setErrorCamara(false)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      if (!activeRef.current) { stream.getTracks().forEach(t => t.stop()); return }
-      streamRef.current = stream
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
-      setScannerActivo(true)
-      const { BrowserQRCodeReader } = await import('@zxing/browser')
-      const reader = new BrowserQRCodeReader()
-      readerRef.current = reader
-      const result = await reader.decodeOnceFromVideoElement(videoRef.current!)
-      if (!activeRef.current) return
-      detenerScanner()
-      procesarCheckin(result.getText())
-    } catch (err) {
-      if (!activeRef.current) return
-      console.error('[QR]', err)
-      setErrorCamara(true)
-      setScannerActivo(false)
+      const jsQR = (await import('jsqr')).default
+
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.src = url
+
+      await new Promise<void>((res, rej) => {
+        img.onload = () => res()
+        img.onerror = () => rej(new Error('imagen'))
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(url)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, canvas.width, canvas.height)
+
+      if (code?.data) {
+        procesarCheckin(code.data)
+      } else {
+        setProcesando(false)
+        setErrorMsg('No se detectó un QR. Intentá con mejor iluminación o más cerca.')
+      }
+    } catch {
+      setProcesando(false)
+      setErrorMsg('Error al procesar la imagen.')
     }
-  }, [detenerScanner])
 
-  useEffect(() => { return () => { detenerScanner() } }, [detenerScanner])
-
-  useEffect(() => {
-    if (modo === 'scan' && !resultado) iniciarScanner()
-    else detenerScanner()
-  }, [modo, resultado])
+    if (inputFileRef.current) inputFileRef.current.value = ''
+  }, [])
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -87,10 +86,10 @@ export default function CheckinPage() {
 
     if (!socio) {
       setProcesando(false)
+      setErrorMsg('Socio no encontrado. ¿El QR es de este gimnasio?')
       return
     }
 
-    // Verificar si ya hizo check-in hoy
     const hoy = new Date().toISOString().split('T')[0]
     const { data: asistHoy } = await supabaseApp
       .from('asistencias')
@@ -107,14 +106,13 @@ export default function CheckinPage() {
     let diasRestantes: number | null = null
 
     if (membresia) {
-      estadoMembresia = membresia.estado as any
       diasRestantes = calcularDias(membresia.fecha_vencimiento)
       if (diasRestantes < 0) estadoMembresia = 'vencida'
       else if (diasRestantes <= 7) estadoMembresia = 'proxima_vencer'
       else estadoMembresia = 'activa'
+      if (membresia.estado === 'congelada') estadoMembresia = 'congelada'
     }
 
-    // Registrar asistencia si membresía activa y no registrado hoy
     if (!yaRegistrado && (estadoMembresia === 'activa' || estadoMembresia === 'proxima_vencer')) {
       await supabaseApp.from('asistencias').insert({
         org_id: localId,
@@ -125,39 +123,20 @@ export default function CheckinPage() {
       })
     }
 
-    // Obtener nombre de actividad
     let actividad: string | null = null
     if (membresia?.actividades_ids?.[0]) {
-      const { data: act } = await supabaseApp
-        .from('actividades')
-        .select('nombre')
-        .eq('id', membresia.actividades_ids[0])
-        .single()
+      const { data: act } = await supabaseApp.from('actividades').select('nombre').eq('id', membresia.actividades_ids[0]).single()
       actividad = act?.nombre ?? null
     }
 
-    setResultado({
-      socioId,
-      nombre: socio.nombre,
-      apellido: socio.apellido,
-      foto_url: socio.foto_url,
-      estadoMembresia,
-      diasRestantes,
-      actividad,
-      yaRegistrado,
-    })
+    setResultado({ socioId, nombre: socio.nombre, apellido: socio.apellido, foto_url: socio.foto_url, estadoMembresia, diasRestantes, actividad, yaRegistrado })
     setProcesando(false)
   }
 
   const buscarSocio = async (q: string) => {
     setBusqueda(q)
     if (!q.trim() || !localId) { setSocios([]); return }
-    const { data } = await supabaseApp
-      .from('socios')
-      .select('id, nombre, apellido')
-      .eq('org_id', localId)
-      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%`)
-      .limit(8)
+    const { data } = await supabaseApp.from('socios').select('id, nombre, apellido').eq('org_id', localId).or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%`).limit(8)
     setSocios((data ?? []) as any)
   }
 
@@ -166,113 +145,50 @@ export default function CheckinPage() {
     setBusqueda('')
     setSocios([])
     setProcesando(false)
+    setErrorMsg(null)
   }
 
-  // ─── Pantalla de resultado ────────────────────────────────────────────────
+  // ─── Resultado ────────────────────────────────────────────────────────────
   if (resultado) {
-    const config: Record<ResultadoCheckin['estadoMembresia'], {
-      bg: string; border: string; icon: string; titulo: string; subtitulo: string
-    }> = {
-      activa: {
-        bg: 'bg-green-950',
-        border: 'border-green-500',
-        icon: '✅',
-        titulo: 'ACCESO OK',
-        subtitulo: resultado.diasRestantes !== null
-          ? `Membresía vence en ${resultado.diasRestantes} días`
-          : 'Membresía activa',
-      },
-      proxima_vencer: {
-        bg: 'bg-yellow-950',
-        border: 'border-yellow-500',
-        icon: '⚠️',
-        titulo: 'PRÓXIMO A VENCER',
-        subtitulo: `Vence en ${resultado.diasRestantes} días`,
-      },
-      vencida: {
-        bg: 'bg-red-950',
-        border: 'border-red-500',
-        icon: '🚫',
-        titulo: 'MEMBRESÍA VENCIDA',
-        subtitulo: 'Debe renovar para acceder',
-      },
-      congelada: {
-        bg: 'bg-blue-950',
-        border: 'border-blue-500',
-        icon: '❄️',
-        titulo: 'MEMBRESÍA CONGELADA',
-        subtitulo: 'Contactar al responsable',
-      },
-      sin_membresia: {
-        bg: 'bg-red-950',
-        border: 'border-red-500',
-        icon: '❌',
-        titulo: 'SIN MEMBRESÍA',
-        subtitulo: 'No tiene membresía registrada',
-      },
+    const config: Record<ResultadoCheckin['estadoMembresia'], { bg: string; border: string; icon: string; titulo: string; subtitulo: string }> = {
+      activa: { bg: 'bg-green-950', border: 'border-green-500', icon: '✅', titulo: 'ACCESO OK', subtitulo: resultado.diasRestantes !== null ? `Membresía vence en ${resultado.diasRestantes} días` : 'Membresía activa' },
+      proxima_vencer: { bg: 'bg-yellow-950', border: 'border-yellow-500', icon: '⚠️', titulo: 'PRÓXIMO A VENCER', subtitulo: `Vence en ${resultado.diasRestantes} días` },
+      vencida: { bg: 'bg-red-950', border: 'border-red-500', icon: '🚫', titulo: 'MEMBRESÍA VENCIDA', subtitulo: 'Debe renovar para acceder' },
+      congelada: { bg: 'bg-blue-950', border: 'border-blue-500', icon: '❄️', titulo: 'MEMBRESÍA CONGELADA', subtitulo: 'Contactar al responsable' },
+      sin_membresia: { bg: 'bg-red-950', border: 'border-red-500', icon: '❌', titulo: 'SIN MEMBRESÍA', subtitulo: 'No tiene membresía registrada' },
     }
-
     const c = config[resultado.estadoMembresia]
-
     return (
       <RouteGuard permiso="verCheckin">
         <div className={`fixed inset-0 ${c.bg} flex flex-col items-center justify-center p-6 z-50`}>
-
-          {/* Icono gigante */}
           <div className="text-8xl mb-6">{c.icon}</div>
-
-          {/* Avatar + nombre */}
           <div className="flex flex-col items-center mb-6">
             <div className="w-24 h-24 rounded-full bg-gray-800 border-4 border-white/20 flex items-center justify-center overflow-hidden mb-4">
               {resultado.foto_url
                 ? <img src={resultado.foto_url} alt="" className="w-full h-full object-cover" />
-                : <span className="text-white font-bold text-3xl">
-                    {resultado.nombre[0]}{resultado.apellido[0]}
-                  </span>
+                : <span className="text-white font-bold text-3xl">{resultado.nombre[0]}{resultado.apellido[0]}</span>
               }
             </div>
-            <h2 className="text-white text-3xl font-bold text-center">
-              {resultado.nombre} {resultado.apellido}
-            </h2>
-            {resultado.actividad && (
-              <p className="text-white/60 text-sm mt-1">{resultado.actividad}</p>
-            )}
+            <h2 className="text-white text-3xl font-bold text-center">{resultado.nombre} {resultado.apellido}</h2>
+            {resultado.actividad && <p className="text-white/60 text-sm mt-1">{resultado.actividad}</p>}
           </div>
-
-          {/* Estado */}
           <div className={`border-2 ${c.border} rounded-2xl px-8 py-4 text-center mb-4`}>
             <p className="text-white text-2xl font-black tracking-wide">{c.titulo}</p>
             <p className="text-white/70 text-sm mt-1">{c.subtitulo}</p>
           </div>
-
-          {resultado.yaRegistrado && (
-            <p className="text-white/50 text-sm mb-4">Ya registró asistencia hoy</p>
-          )}
-
-          {/* Acciones contextuales */}
+          {resultado.yaRegistrado && <p className="text-white/50 text-sm mb-4">Ya registró asistencia hoy</p>}
           <div className="flex gap-3 w-full max-w-xs mt-2">
             {resultado.estadoMembresia === 'vencida' && (
-              <button
-                onClick={() => router.push(`/cobros/nuevo?socio=${resultado.socioId}`)}
-                className="flex-1 py-3 bg-white/10 rounded-xl text-white text-sm font-semibold"
-              >
-                💰 Cobrar ahora
-              </button>
+              <button onClick={() => router.push(`/cobros/nuevo?socio=${resultado.socioId}`)} className="flex-1 py-3 bg-white/10 rounded-xl text-white text-sm font-semibold">💰 Cobrar ahora</button>
             )}
-            <button
-              onClick={resetear}
-              className="flex-1 py-3 bg-white/10 rounded-xl text-white text-sm font-semibold"
-            >
-              Siguiente
-            </button>
+            <button onClick={resetear} className="flex-1 py-3 bg-white/10 rounded-xl text-white text-sm font-semibold">Siguiente</button>
           </div>
-
         </div>
       </RouteGuard>
     )
   }
 
-  // ─── Pantalla de scan ─────────────────────────────────────────────────────
+  // ─── Scanner ──────────────────────────────────────────────────────────────
   return (
     <RouteGuard permiso="verCheckin">
       <div className="max-w-lg mx-auto">
@@ -280,20 +196,8 @@ export default function CheckinPage() {
         <div className="flex items-center gap-3 mb-6">
           <h1 className="text-xl font-bold text-white flex-1">Check-in</h1>
           <div className="flex gap-1 bg-gray-800 rounded-xl p-1">
-            <button
-              onClick={() => setModo('scan')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition
-                ${modo === 'scan' ? 'bg-violet-600 text-white' : 'text-gray-400'}`}
-            >
-              📷 QR
-            </button>
-            <button
-              onClick={() => setModo('manual')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition
-                ${modo === 'manual' ? 'bg-violet-600 text-white' : 'text-gray-400'}`}
-            >
-              🔍 Manual
-            </button>
+            <button onClick={() => setModo('scan')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${modo === 'scan' ? 'bg-violet-600 text-white' : 'text-gray-400'}`}>📷 QR</button>
+            <button onClick={() => setModo('manual')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${modo === 'manual' ? 'bg-violet-600 text-white' : 'text-gray-400'}`}>🔍 Manual</button>
           </div>
         </div>
 
@@ -305,55 +209,26 @@ export default function CheckinPage() {
         )}
 
         {!procesando && modo === 'scan' && (
-          <div className="flex flex-col items-center gap-4">
-            {/* Visor de cámara en vivo */}
-            <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden bg-black border-2 border-violet-700">
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              {/* Marco de escaneo */}
-              {scannerActivo && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-40 h-40 border-2 border-violet-400 rounded-xl opacity-70" />
-                </div>
-              )}
-              {!scannerActivo && !errorCamara && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-gray-400 text-sm">Iniciando cámara...</p>
-                </div>
-              )}
-            </div>
-            <p className="text-gray-500 text-sm text-center">Apuntá la cámara al código QR del socio</p>
+          <div className="flex flex-col items-center gap-5">
+            <input ref={inputFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoQR} />
 
-            {errorCamara && (
-              <div className="w-full text-center space-y-3">
-                <p className="text-red-400 text-sm font-semibold">No se pudo acceder a la cámara</p>
-                <div className="bg-gray-900 border border-gray-700 rounded-xl p-3 text-left text-xs text-gray-400 space-y-1">
-                  <p className="text-gray-300 font-medium mb-2">Para habilitar la cámara en Chrome:</p>
-                  <p>1. Tocá el 🔒 en la barra de dirección</p>
-                  <p>2. Tocá <strong>Permisos → Cámara</strong></p>
-                  <p>3. Cambiá a <strong>Permitir</strong> y recargá</p>
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={() => { setErrorCamara(false); iniciarScanner() }}
-                    className="px-4 py-2 bg-violet-700 rounded-xl text-sm text-white"
-                  >
-                    Reintentar
-                  </button>
-                  <button
-                    onClick={() => { setErrorCamara(false); setModo('manual') }}
-                    className="px-4 py-2 bg-gray-800 rounded-xl text-sm text-white"
-                  >
-                    Modo manual
-                  </button>
-                </div>
+            <button
+              onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }}
+              className="w-full aspect-square max-w-xs rounded-3xl bg-gray-900 border-2 border-dashed border-violet-600 flex flex-col items-center justify-center gap-4 active:scale-95 transition-all"
+            >
+              <span className="text-7xl">📷</span>
+              <span className="text-white font-bold text-xl">Escanear QR</span>
+              <span className="text-gray-500 text-sm">Tocá para abrir la cámara</span>
+            </button>
+
+            {errorMsg && (
+              <div className="w-full bg-red-950 border border-red-800 rounded-2xl p-4 text-center space-y-3">
+                <p className="text-red-300 text-sm">{errorMsg}</p>
+                <button onClick={() => { setErrorMsg(null); inputFileRef.current?.click() }} className="px-5 py-2 bg-violet-700 rounded-xl text-sm text-white font-semibold">Intentar de nuevo</button>
               </div>
             )}
+
+            <p className="text-gray-600 text-xs text-center">Tip: enfocá bien el QR y asegurate de tener buena luz</p>
           </div>
         )}
 
@@ -371,11 +246,7 @@ export default function CheckinPage() {
             </div>
             <div className="space-y-2">
               {socios.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => procesarCheckin(s.id)}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:border-violet-700 transition text-left"
-                >
+                <button key={s.id} onClick={() => procesarCheckin(s.id)} className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:border-violet-700 transition text-left">
                   <div className="w-10 h-10 rounded-full bg-violet-900 flex items-center justify-center shrink-0">
                     <span className="text-violet-300 font-bold">{s.nombre[0]}{s.apellido[0]}</span>
                   </div>
