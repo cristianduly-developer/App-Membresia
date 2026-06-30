@@ -94,14 +94,14 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     usaCierreCaja: true,
   },
   sincargo: {
-    maxSocios: null,
+    maxSocios: 300,
     maxActividades: null,
-    maxColaboradores: 5,
+    maxColaboradores: 2,
     usaAptoMedico: true,
     usaProfesores: true,
     usaLiquidaciones: true,
     usaAlertaDesercion: true,
-    usaReportesAvanzados: true,
+    usaReportesAvanzados: false,
     usaCierreCaja: true,
   },
 }
