@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
@@ -32,12 +32,46 @@ export default function CheckinPage() {
   const [scannerActivo, setScannerActivo] = useState(false)
   const [errorCamara, setErrorCamara] = useState(false)
 
-  const scannerRef = useRef<any>(null)
-  const scannerDivId = 'qr-scanner'
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const readerRef = useRef<any>(null)
+  const activeRef = useRef(false)
+
+  const detenerScanner = useCallback(() => {
+    activeRef.current = false
+    if (readerRef.current) {
+      try { readerRef.current.reset() } catch {}
+      readerRef.current = null
+    }
+    setScannerActivo(false)
+  }, [])
+
+  const iniciarScanner = useCallback(async () => {
+    if (activeRef.current) return
+    activeRef.current = true
+    setErrorCamara(false)
+    try {
+      const { BrowserQRCodeReader } = await import('@zxing/browser')
+      const reader = new BrowserQRCodeReader()
+      readerRef.current = reader
+      setScannerActivo(true)
+      const result = await reader.decodeOnceFromConstraints(
+        { video: { facingMode: 'environment' } },
+        videoRef.current!
+      )
+      if (!activeRef.current) return
+      detenerScanner()
+      procesarCheckin(result.getText())
+    } catch (err: any) {
+      if (!activeRef.current) return
+      console.error('[QR] Error:', err)
+      setErrorCamara(true)
+      setScannerActivo(false)
+    }
+  }, [detenerScanner])
 
   useEffect(() => {
     return () => { detenerScanner() }
-  }, [])
+  }, [detenerScanner])
 
   useEffect(() => {
     if (modo === 'scan' && !resultado) {
@@ -46,42 +80,6 @@ export default function CheckinPage() {
       detenerScanner()
     }
   }, [modo, resultado])
-
-  const iniciarScanner = async () => {
-    if (scannerActivo) return
-    // Esperar que el div esté montado en el DOM
-    await new Promise(r => setTimeout(r, 300))
-    const el = document.getElementById(scannerDivId)
-    if (!el) return
-    try {
-      const { Html5Qrcode } = await import('html5-qrcode')
-      const scanner = new Html5Qrcode(scannerDivId)
-      scannerRef.current = scanner
-      setScannerActivo(true)
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText: string) => {
-          detenerScanner()
-          procesarCheckin(decodedText)
-        },
-        undefined
-      )
-    } catch (err) {
-      console.error('[QR] Error al iniciar scanner:', err)
-      setScannerActivo(false)
-      scannerRef.current = null
-      setErrorCamara(true)
-    }
-  }
-
-  const detenerScanner = async () => {
-    if (scannerRef.current) {
-      try { await scannerRef.current.stop() } catch {}
-      scannerRef.current = null
-    }
-    setScannerActivo(false)
-  }
 
   const procesarCheckin = async (socioId: string) => {
     if (!localId || procesando) return
@@ -313,10 +311,20 @@ export default function CheckinPage() {
 
         {!procesando && modo === 'scan' && (
           <div>
-            <div
-              id={scannerDivId}
-              className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 aspect-square"
-            />
+            <div className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 aspect-square relative">
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {/* Marco guía */}
+              {scannerActivo && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-48 h-48 border-2 border-violet-400 rounded-2xl opacity-70" />
+                </div>
+              )}
+            </div>
             {errorCamara ? (
               <div className="mt-3 text-center">
                 <p className="text-red-400 text-sm mb-2">No se pudo acceder a la cámara</p>
