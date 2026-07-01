@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const [{ data: socio }, { data: membresias }, { data: org }] = await Promise.all([
     supabaseApp.from('socios').select('nombre, apellido, email').eq('id', socio_id).eq('org_id', org_id).single(),
-    supabaseApp.from('membresias').select('tipo, fecha_vencimiento, actividades_ids').eq('socio_id', socio_id).eq('org_id', org_id).order('fecha_vencimiento', { ascending: false }).limit(1),
+    supabaseApp.from('membresias').select('tipo, fecha_vencimiento').eq('socio_id', socio_id).eq('org_id', org_id).order('fecha_vencimiento', { ascending: false }).limit(1),
     supabaseApp.from('config_org').select('nombre_negocio, telefono').eq('org_id', org_id).single(),
   ])
 
@@ -33,11 +33,13 @@ export async function POST(req: NextRequest) {
     ? new Date(membresia.fecha_vencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
     : null
 
+  // Generar QR como Buffer PNG para adjuntar inline
   const qrDataUrl = await QRCode.toDataURL(socio_id, {
     width: 300,
     margin: 2,
     color: { dark: '#000000', light: '#ffffff' },
   })
+  const qrBase64 = qrDataUrl.match(/^data:.+;base64,(.+)$/)![1]
 
   const nombreNegocio = (org as any)?.nombre_negocio || 'Tu gimnasio'
   const whatsapp = (org as any)?.telefono
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
 
         <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px;text-align:center;">
           <p style="margin:0 0 12px;font-weight:700;color:#111827;font-size:13px;text-transform:uppercase;letter-spacing:.5px;">Tu QR de acceso</p>
-          <img src="${qrDataUrl}" alt="QR de acceso" style="width:200px;height:200px;border-radius:8px;" />
+          <img src="cid:qr-acceso" alt="QR de acceso" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:8px;" />
           <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">Mostralo en recepción para registrar tu entrada</p>
         </div>
 
@@ -87,6 +89,15 @@ export async function POST(req: NextRequest) {
         to: socio.email,
         subject: `¡Bienvenido/a a ${nombreNegocio}! Tu QR de acceso`,
         html,
+        attachments: [
+          {
+            filename: 'qr-acceso.png',
+            content: qrBase64,
+            content_type: 'image/png',
+            content_id: 'qr-acceso',
+            inline: true,
+          },
+        ],
       }),
     })
   } catch (err: any) {

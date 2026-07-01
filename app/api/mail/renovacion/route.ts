@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     margin: 2,
     color: { dark: '#000000', light: '#ffffff' },
   })
+  const qrBase64 = qrDataUrl.match(/^data:.+;base64,(.+)$/)![1]
 
   const nombreNegocio = (org as any)?.nombre_negocio || 'Tu gimnasio'
   const whatsapp = (org as any)?.telefono
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
         <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:24px;text-align:center;">
           <p style="margin:0 0 12px;font-weight:700;color:#111827;font-size:13px;text-transform:uppercase;letter-spacing:.5px;">Tu QR de acceso</p>
-          <img src="${qrDataUrl}" alt="QR de acceso" style="width:180px;height:180px;border-radius:8px;" />
+          <img src="cid:qr-acceso" alt="QR de acceso" style="width:180px;height:180px;display:block;margin:0 auto;border-radius:8px;" />
           <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">Guardalo por si lo necesitás</p>
         </div>
 
@@ -85,6 +86,15 @@ export async function POST(req: NextRequest) {
         to: socio.email,
         subject: `Membresía renovada en ${nombreNegocio} ✅`,
         html,
+        attachments: [
+          {
+            filename: 'qr-acceso.png',
+            content: qrBase64,
+            content_type: 'image/png',
+            content_id: 'qr-acceso',
+            inline: true,
+          },
+        ],
       }),
     })
   } catch (err) {
