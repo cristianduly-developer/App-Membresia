@@ -126,6 +126,22 @@ function NuevoCobroInner() {
         fecha_vencimiento: nuevaFechaVenc,
         estado: 'activa',
       }).eq('id', memb.id)
+
+      // Mail de renovación (fire & forget)
+      supabaseApp.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.access_token || !socioSeleccionado) return
+        fetch('/api/mail/renovacion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            socio_id: socioSeleccionado.id,
+            org_id: localId,
+            nueva_fecha_vencimiento: nuevaFechaVenc,
+            monto,
+            tipo: memb.tipo,
+          }),
+        }).catch(() => {})
+      })
     }
 
     setExito(true)

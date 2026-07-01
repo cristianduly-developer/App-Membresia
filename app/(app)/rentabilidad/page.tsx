@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { RouteGuard } from '@/components/RouteGuard'
+import { PlanGuard } from '@/components/PlanGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
 
@@ -126,6 +127,7 @@ export default function RentabilidadPage() {
 
   return (
     <RouteGuard permiso="verRentabilidad">
+      <PlanGuard feature="usaReportesAvanzados">
       <div className="max-w-2xl mx-auto">
 
         <div className="flex items-center justify-between mb-5">
@@ -248,6 +250,7 @@ export default function RentabilidadPage() {
         )}
 
       </div>
+      </PlanGuard>
     </RouteGuard>
   )
 }

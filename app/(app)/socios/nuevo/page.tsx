@@ -61,6 +61,18 @@ function NuevoSocioInner() {
       return
     }
 
+    // Mandar mail de bienvenida con QR si el socio tiene email
+    if (form.email) {
+      const { data: { session } } = await supabaseApp.auth.getSession()
+      if (session?.access_token) {
+        fetch('/api/mail/socio-bienvenida', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ socio_id: data.id, org_id: localId }),
+        }).catch(() => {})
+      }
+    }
+
     router.push(`/socios/${data.id}`)
   }
 

@@ -3,28 +3,30 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from '@/lib/sessionStore'
 import { usePermisos } from '@/hooks/usePermisos'
+import { getLimites, type PlanLimits } from '@/lib/planLimits'
 import { supabaseApp } from '@/lib/supabaseApp'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',      label: 'Dashboard',      emoji: '📊', permiso: 'verDashboard'    },
-  { href: '/socios',         label: 'Socios',         emoji: '👥', permiso: 'verSocios'       },
-  { href: '/actividades',    label: 'Actividades',    emoji: '🏃', permiso: 'verActividades'  },
-  { href: '/membresias',     label: 'Membresías',     emoji: '🎫', permiso: 'verMembresias'   },
-  { href: '/cobros',         label: 'Cobros',         emoji: '💰', permiso: 'verCobros'       },
-  { href: '/checkin',        label: 'Check-in',       emoji: '📲', permiso: 'verCheckin'      },
-  { href: '/asistencias',    label: 'Asistencias',    emoji: '📋', permiso: 'verAsistencias'  },
-  { href: '/profesores',     label: 'Profesores',     emoji: '👨‍🏫', permiso: 'verProfesores'   },
-  { href: '/liquidaciones',  label: 'Liquidaciones',  emoji: '📑', permiso: 'verLiquidaciones'},
-  { href: '/apto-medico',    label: 'Apto médico',    emoji: '🩺', permiso: 'verSocios'       },
-  { href: '/caja',           label: 'Caja',           emoji: '🧾', permiso: 'verCaja'         },
-  { href: '/rentabilidad',   label: 'Rentabilidad',   emoji: '📈', permiso: 'verRentabilidad' },
-  { href: '/config',         label: 'Configuración',  emoji: '⚙️', permiso: 'verConfig'       },
-] as const
+  { href: '/dashboard',      label: 'Dashboard',      emoji: '📊', permiso: 'verDashboard',    planFeature: null                                    },
+  { href: '/socios',         label: 'Socios',         emoji: '👥', permiso: 'verSocios',       planFeature: null                                    },
+  { href: '/actividades',    label: 'Actividades',    emoji: '🏃', permiso: 'verActividades',  planFeature: null                                    },
+  { href: '/membresias',     label: 'Membresías',     emoji: '🎫', permiso: 'verMembresias',   planFeature: null                                    },
+  { href: '/cobros',         label: 'Cobros',         emoji: '💰', permiso: 'verCobros',       planFeature: null                                    },
+  { href: '/checkin',        label: 'Check-in',       emoji: '📲', permiso: 'verCheckin',      planFeature: null                                    },
+  { href: '/asistencias',    label: 'Asistencias',    emoji: '📋', permiso: 'verAsistencias',  planFeature: null                                    },
+  { href: '/profesores',     label: 'Profesores',     emoji: '👨‍🏫', permiso: 'verProfesores',   planFeature: 'usaProfesores' as keyof PlanLimits      },
+  { href: '/liquidaciones',  label: 'Liquidaciones',  emoji: '📑', permiso: 'verLiquidaciones',planFeature: 'usaLiquidaciones' as keyof PlanLimits   },
+  { href: '/apto-medico',    label: 'Apto médico',    emoji: '🩺', permiso: 'verSocios',       planFeature: 'usaAptoMedico' as keyof PlanLimits      },
+  { href: '/caja',           label: 'Caja',           emoji: '🧾', permiso: 'verCaja',         planFeature: null                                    },
+  { href: '/rentabilidad',   label: 'Rentabilidad',   emoji: '📈', permiso: 'verRentabilidad', planFeature: 'usaReportesAvanzados' as keyof PlanLimits },
+  { href: '/config',         label: 'Configuración',  emoji: '⚙️', permiso: 'verConfig',       planFeature: null                                    },
+]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { nombreNegocio, rolSistema } = useSession()
+  const { nombreNegocio, rolSistema, plan } = useSession()
   const permisos = usePermisos()
+  const limites = getLimites(plan)
 
   const handleLogout = async () => {
     await supabaseApp.auth.signOut()
@@ -53,6 +55,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const locked = item.planFeature ? !limites[item.planFeature] : false
           return (
             <Link
               key={item.href}
@@ -64,6 +67,7 @@ export function Sidebar() {
             >
               <span className="text-base">{item.emoji}</span>
               <span className="flex-1">{item.label}</span>
+              {locked && <span className="text-xs opacity-70">🔒</span>}
             </Link>
           )
         })}

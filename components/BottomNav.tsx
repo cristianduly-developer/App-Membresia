@@ -3,6 +3,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePermisos } from '@/hooks/usePermisos'
+import { useSession } from '@/lib/sessionStore'
+import { getLimites, type PlanLimits } from '@/lib/planLimits'
 
 const MAIN_ITEMS = [
   { href: '/socios',    label: 'Socios',    emoji: '👥', permiso: 'verSocios'    },
@@ -11,21 +13,23 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
-  { href: '/asistencias',  label: 'Asistencias',  emoji: '📋', permiso: 'verAsistencias'   },
-  { href: '/membresias',   label: 'Membresías',   emoji: '🎫', permiso: 'verMembresias'    },
-  { href: '/actividades',  label: 'Actividades',  emoji: '🏃', permiso: 'verActividades'   },
-  { href: '/profesores',   label: 'Profesores',   emoji: '👨‍🏫', permiso: 'verProfesores'    },
-  { href: '/liquidaciones',label: 'Liquidaciones',emoji: '📑', permiso: 'verLiquidaciones' },
-  { href: '/apto-medico',  label: 'Apto médico',  emoji: '🩺', permiso: 'verSocios'        },
-  { href: '/caja',         label: 'Caja',         emoji: '🧾', permiso: 'verCaja'          },
-  { href: '/rentabilidad', label: 'Rentabilidad', emoji: '📈', permiso: 'verRentabilidad'  },
-  { href: '/config',       label: 'Config',       emoji: '⚙️', permiso: 'verConfig'        },
-] as const
+  { href: '/asistencias',  label: 'Asistencias',  emoji: '📋', permiso: 'verAsistencias',   planFeature: null                        },
+  { href: '/membresias',   label: 'Membresías',   emoji: '🎫', permiso: 'verMembresias',    planFeature: null                        },
+  { href: '/actividades',  label: 'Actividades',  emoji: '🏃', permiso: 'verActividades',   planFeature: null                        },
+  { href: '/profesores',   label: 'Profesores',   emoji: '👨‍🏫', permiso: 'verProfesores',    planFeature: 'usaProfesores' as keyof PlanLimits },
+  { href: '/liquidaciones',label: 'Liquidaciones',emoji: '📑', permiso: 'verLiquidaciones', planFeature: 'usaLiquidaciones' as keyof PlanLimits },
+  { href: '/apto-medico',  label: 'Apto médico',  emoji: '🩺', permiso: 'verSocios',        planFeature: 'usaAptoMedico' as keyof PlanLimits },
+  { href: '/caja',         label: 'Caja',         emoji: '🧾', permiso: 'verCaja',          planFeature: null                        },
+  { href: '/rentabilidad', label: 'Rentabilidad', emoji: '📈', permiso: 'verRentabilidad',  planFeature: 'usaReportesAvanzados' as keyof PlanLimits },
+  { href: '/config',       label: 'Config',       emoji: '⚙️', permiso: 'verConfig',        planFeature: null                        },
+]
 
 export function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
   const permisos = usePermisos()
+  const { plan } = useSession()
+  const limites = getLimites(plan)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const mainItems = MAIN_ITEMS.filter(i => permisos[i.permiso as keyof typeof permisos])
@@ -54,15 +58,19 @@ export function BottomNav() {
             <div className="grid grid-cols-4 gap-2">
               {moreItems.map(item => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                const locked = item.planFeature ? !limites[item.planFeature] : false
                 return (
                   <button
                     key={item.href}
                     onClick={() => handleMoreNav(item.href)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all
+                    className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all
                       ${active ? 'bg-violet-600/20 text-violet-400' : 'bg-gray-800 text-gray-400 active:bg-gray-700'}`}
                   >
                     <span className="text-2xl">{item.emoji}</span>
                     <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                    {locked && (
+                      <span className="absolute top-1.5 right-1.5 text-[10px] leading-none">🔒</span>
+                    )}
                   </button>
                 )
               })}
