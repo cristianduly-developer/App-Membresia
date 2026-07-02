@@ -53,6 +53,14 @@ export async function POST(req: NextRequest) {
     app_id: APP_ID,
   }).then(() => {})
 
+  central.from('eventos_suscripcion').insert({
+    org_id: orgId,
+    app_id: APP_ID,
+    tipo: 'nueva_suscripcion',
+    descripcion: `Nueva demo — ${nombre} (${email})`,
+    plan: 'profesional',
+  }).then(() => {})
+
   await supabaseAdmin
     .from('config_org')
     .upsert({ org_id: orgId, onboarding_completo: false }, { onConflict: 'org_id', ignoreDuplicates: true })
