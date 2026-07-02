@@ -28,8 +28,12 @@ export async function POST(req: NextRequest) {
 
     await supa.from('asistencias').delete().eq('user_id', uid)
     await supa.from('actividades').delete().eq('user_id', uid)
+    await supa.from('congelamientos').delete().eq('user_id', uid)
     await supa.from('cobros').delete().eq('user_id', uid)
     await supa.from('liquidaciones').delete().eq('user_id', uid)
+    await supa.from('gastos').delete().eq('user_id', uid)
+    await supa.from('gastos_caja').delete().eq('user_id', uid)
+    await supa.from('aptos_medicos').delete().eq('user_id', uid)
     await supa.from('apto_medico').delete().eq('user_id', uid)
     await supa.from('items_comanda').delete().eq('user_id', uid)
     await supa.from('comandas').delete().eq('user_id', uid)
