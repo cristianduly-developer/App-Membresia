@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const [{ data: socio }, { data: membresias }, { data: org }] = await Promise.all([
     supabaseApp.from('socios').select('nombre, apellido, email').eq('id', socio_id).eq('org_id', org_id).single(),
     supabaseApp.from('membresias').select('tipo, fecha_vencimiento').eq('socio_id', socio_id).eq('org_id', org_id).order('fecha_vencimiento', { ascending: false }).limit(1),
-    supabaseApp.from('config_org').select('nombre_negocio, telefono').eq('org_id', org_id).maybeSingle(),
+    supabaseApp.from('config_org').select('nombre_negocio, telefono, logo_url').eq('org_id', org_id).maybeSingle(),
   ])
 
   if (!socio?.email) return NextResponse.json({ ok: false, error: 'sin_email' })
@@ -43,11 +43,14 @@ export async function POST(req: NextRequest) {
 
   const nombreNegocio = (org as any)?.nombre_negocio || 'Tu gimnasio'
   const whatsapp = (org as any)?.telefono
+  const logoUrl = (org as any)?.logo_url
 
   const html = `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
       <div style="background:#7c3aed;padding:32px 24px;text-align:center;">
-        <div style="font-size:40px;">🏋️</div>
+        ${logoUrl
+          ? `<img src="${logoUrl}" alt="${nombreNegocio}" style="width:64px;height:64px;border-radius:16px;object-fit:cover;margin-bottom:8px;" />`
+          : `<div style="font-size:40px;">🏋️</div>`}
         <h1 style="color:white;margin:8px 0 4px;font-size:22px;">${nombreNegocio}</h1>
         <p style="color:rgba(255,255,255,.85);margin:0;font-size:14px;">Bienvenido/a</p>
       </div>

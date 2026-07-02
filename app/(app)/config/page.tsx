@@ -49,6 +49,8 @@ export default function ConfigPage() {
     rubro: rubroOrg ?? 'otro',
     telefono: '',
   })
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -67,7 +69,7 @@ export default function ConfigPage() {
 
   const cargar = async () => {
     const [{ data }, { data: colabs }] = await Promise.all([
-      supabaseApp.from('config_org').select('nombre_negocio, rubro, telefono').eq('org_id', localId).maybeSingle(),
+      supabaseApp.from('config_org').select('nombre_negocio, rubro, telefono, logo_url').eq('org_id', localId).maybeSingle(),
       supabaseApp.from('colaboradores').select('*').eq('org_id', localId).eq('activo', true).order('nombre'),
     ])
     if (data) {
@@ -76,9 +78,23 @@ export default function ConfigPage() {
         rubro: data.rubro ?? 'otro',
         telefono: data.telefono ?? '',
       })
+      setLogoUrl(data.logo_url ?? null)
     }
     setColaboradores((colabs ?? []) as Colaborador[])
     setLoading(false)
+  }
+
+  const subirLogo = async (file: File) => {
+    if (!localId) return
+    setSubiendoLogo(true)
+    const ext = file.name.split('.').pop()
+    const path = `${localId}/logo.${ext}`
+    const { error } = await supabaseApp.storage.from('logos').upload(path, file, { upsert: true })
+    if (error) { setSubiendoLogo(false); return }
+    const { data: { publicUrl } } = supabaseApp.storage.from('logos').getPublicUrl(path)
+    await supabaseApp.from('config_org').update({ logo_url: publicUrl }).eq('org_id', localId)
+    setLogoUrl(publicUrl)
+    setSubiendoLogo(false)
   }
 
   const agregarColaborador = async () => {
@@ -160,6 +176,41 @@ export default function ConfigPage() {
             {/* Datos del negocio */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-4">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Negocio</h2>
+
+              {/* Logo */}
+              <div>
+                <label className="text-gray-400 text-xs block mb-2">Logo del negocio</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                    {logoUrl
+                      ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                      : <span className="text-3xl">{RUBROS.find(r => r.key === form.rubro)?.icon ?? '🏢'}</span>
+                    }
+                  </div>
+                  <label className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed cursor-pointer transition text-sm font-medium
+                    ${subiendoLogo ? 'border-gray-700 text-gray-600' : 'border-gray-700 text-gray-400 hover:border-violet-500 hover:text-violet-400'}`}>
+                    {subiendoLogo ? '⏳ Subiendo...' : '📷 Subir logo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={subiendoLogo}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) subirLogo(f) }}
+                    />
+                  </label>
+                </div>
+                {logoUrl && (
+                  <button
+                    onClick={async () => {
+                      await supabaseApp.from('config_org').update({ logo_url: null }).eq('org_id', localId)
+                      setLogoUrl(null)
+                    }}
+                    className="mt-2 text-xs text-red-500 hover:text-red-400"
+                  >
+                    Eliminar logo
+                  </button>
+                )}
+              </div>
 
               <div>
                 <label className="text-gray-400 text-xs block mb-1">Nombre del negocio</label>
