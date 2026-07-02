@@ -302,6 +302,17 @@ export default function ConfigPage() {
               </div>
             )}
 
+            {/* Mi suscripción */}
+            {rolSistema === 'owner' && (
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                  <p className="text-white text-sm font-semibold">Mi suscripción</p>
+                  <p className="text-gray-400 text-xs mt-0.5">Plan activo, pagos y débito automático</p>
+                </div>
+                <a href="/miplan" className="text-blue-400 text-sm font-semibold">Gestionar →</a>
+              </div>
+            )}
+
             {/* Soporte */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Soporte</h2>
