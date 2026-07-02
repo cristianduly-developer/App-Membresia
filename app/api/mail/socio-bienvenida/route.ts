@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const [{ data: socio }, { data: membresias }, { data: org }] = await Promise.all([
     supabaseApp.from('socios').select('nombre, apellido, email').eq('id', socio_id).eq('org_id', org_id).single(),
     supabaseApp.from('membresias').select('tipo, fecha_vencimiento').eq('socio_id', socio_id).eq('org_id', org_id).order('fecha_vencimiento', { ascending: false }).limit(1),
-    supabaseApp.from('config_org').select('nombre_negocio, telefono').eq('org_id', org_id).single(),
+    supabaseApp.from('config_org').select('nombre_negocio, telefono').eq('org_id', org_id).maybeSingle(),
   ])
 
   if (!socio?.email) return NextResponse.json({ ok: false, error: 'sin_email' })
