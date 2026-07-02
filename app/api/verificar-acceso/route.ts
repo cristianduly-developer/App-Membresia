@@ -102,12 +102,12 @@ export async function GET(req: NextRequest) {
       .select('estado')
       .eq('org_id', empData[0].org_id)
       .eq('app_id', 'app-membresias')
-      .in('estado', ['suspendido', 'impago'])
+      .in('estado', ['suspendido', 'impago', 'cancelado'])
       .limit(1)
       .maybeSingle()
 
     if (subData?.estado) {
-      return NextResponse.json({ error: 'cuenta_suspendida', estado: subData.estado }, { status: 403 })
+      return NextResponse.json({ error: 'cuenta_suspendida', estado: subData.estado, org_id: empData[0].org_id }, { status: 403 })
     }
   }
 
