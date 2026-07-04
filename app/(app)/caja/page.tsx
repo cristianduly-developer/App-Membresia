@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 interface Gasto {
   id: string
@@ -76,7 +77,7 @@ export default function CajaPage() {
       categoria: form.categoria,
       fecha: form.fecha,
     })
-    if (e) { setError(e.message); setGuardando(false); return }
+    if (e) { setError(mensajeErrorGuardado(e) || e.message); setGuardando(false); return }
     setModal(false)
     setForm({ descripcion: '', monto: '', categoria: 'otros', fecha: new Date().toISOString().split('T')[0] })
     await cargar()

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 interface Socio {
   id: string
@@ -118,7 +119,7 @@ function NuevoCobroInner() {
       concepto,
     })
 
-    if (err) { setError(err.message); setGuardando(false); return }
+    if (err) { setError(mensajeErrorGuardado(err) || err.message); setGuardando(false); return }
 
     // Renovar membresía automáticamente si corresponde
     if (renovarMembresia && memb?.id) {

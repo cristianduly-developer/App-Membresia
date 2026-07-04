@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 interface Socio { id: string; nombre: string; apellido: string }
 interface Actividad { id: string; nombre: string; horario_inicio: string | null; horario_fin: string | null }
@@ -89,7 +90,7 @@ function NuevaMembresiaInner() {
       actividades_ids: form.actividades_ids.length > 0 ? form.actividades_ids : null,
     })
 
-    if (err) { setError(err.message); setGuardando(false); return }
+    if (err) { setError(mensajeErrorGuardado(err) || err.message); setGuardando(false); return }
 
     if (socioParam) {
       router.push(`/socios/${socioParam}`)

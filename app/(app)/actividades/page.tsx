@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 interface Actividad {
   id: string
@@ -75,7 +76,7 @@ export default function ActividadesPage() {
       cupo_maximo: form.cupo_maximo ? parseInt(form.cupo_maximo) : null,
     }
     const { error: err } = await supabaseApp.from('actividades').insert(payload)
-    if (err) { setError(err.message); setGuardando(false); return }
+    if (err) { setError(mensajeErrorGuardado(err) || err.message); setGuardando(false); return }
     setModal(false)
     setForm({ nombre: '', horario_inicio: '', horario_fin: '', cupo_maximo: '', dias: [] })
     await cargar()

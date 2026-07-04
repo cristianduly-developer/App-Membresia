@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 const ESTADOS = ['activo', 'inactivo', 'suspendido']
 
@@ -56,7 +57,7 @@ function NuevoSocioInner() {
       .single()
 
     if (err) {
-      setError(err.message)
+      setError(mensajeErrorGuardado(err) || err.message)
       setGuardando(false)
       return
     }

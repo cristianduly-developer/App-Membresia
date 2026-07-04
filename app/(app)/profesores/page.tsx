@@ -5,6 +5,7 @@ import { RouteGuard } from '@/components/RouteGuard'
 import { PlanGuard } from '@/components/PlanGuard'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useSession } from '@/lib/sessionStore'
+import { mensajeErrorGuardado } from '@/lib/errores'
 
 interface Profesor {
   id: string
@@ -95,7 +96,7 @@ export default function ProfesoresPage() {
       await supabaseApp.from('profesores').update(payload).eq('id', editandoId)
     } else {
       const { error: e } = await supabaseApp.from('profesores').insert(payload)
-      if (e) { setError(e.message); setGuardando(false); return }
+      if (e) { setError(mensajeErrorGuardado(e) || e.message); setGuardando(false); return }
     }
     setModal(false)
     await cargar()
