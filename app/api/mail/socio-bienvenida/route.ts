@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import QRCode from 'qrcode'
+import { reportarError } from '@/lib/reportarError'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: any) {
     console.error('[mail/socio-bienvenida] Resend error:', err?.message ?? err)
+    reportarError(err, { pantalla: 'mail/socio-bienvenida', accion: 'send_email', user_email: socio?.email, org_id })
     return NextResponse.json({ ok: false, error: 'mail_error', detail: err?.message })
   }
 

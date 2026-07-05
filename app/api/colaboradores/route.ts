@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verificarAcceso } from '@/lib/supabaseCentral'
 import { createClient } from '@supabase/supabase-js'
+import { reportarError } from '@/lib/reportarError'
 
 const central = createClient(process.env.CENTRAL_URL!, process.env.CENTRAL_SERVICE_KEY!)
 
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
     rol,
     activo: true,
   })
-  if (localErr) return NextResponse.json({ error: localErr.message }, { status: 500 })
+  if (localErr) {
+    reportarError(localErr, { pantalla: 'colaboradores', accion: 'insert_colaborador', user_email: user.email, org_id: orgId })
+    return NextResponse.json({ error: localErr.message }, { status: 500 })
+  }
 
   // Insertar en central
   central.from('empleados_organizacion').upsert({

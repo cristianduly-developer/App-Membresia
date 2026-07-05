@@ -4,9 +4,7 @@ const APP_ID   = 'app-membresias'
 export function reportarError(error: unknown, contexto: Record<string, unknown> = {}) {
   try {
     const err = error instanceof Error ? error : new Error(String(error))
-    const APP_KEY = typeof window !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_ERROR_KEY || '')
-      : ''
+    const APP_KEY = process.env.ERROR_REPORT_KEY || process.env.NEXT_PUBLIC_ERROR_KEY || ''
     fetch(`${SAAS_URL}/api/reportar-error`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-app-id': APP_ID, 'x-app-key': APP_KEY },
