@@ -173,6 +173,38 @@ export default function ConfigPage() {
         ) : (
           <div className="space-y-4">
 
+            {/* Accesos rápidos — primero en mobile */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-2 space-y-0.5">
+              <a
+                href="https://membresias.solucionesmdp.com.ar/ayuda"
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-800 transition text-sm font-medium text-gray-300"
+              >
+                <span className="text-lg">📖</span> Ver guía de ayuda
+              </a>
+              <a
+                href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-800 transition text-sm font-medium text-gray-300"
+              >
+                <span className="text-lg">💬</span> Contactar soporte por WhatsApp
+              </a>
+              {rolSistema === 'owner' && (
+                <a
+                  href="/miplan"
+                  className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-800 transition text-sm font-medium text-gray-300"
+                >
+                  <span className="text-lg">💳</span> Mi suscripción
+                </a>
+              )}
+              <button
+                onClick={cerrarSesion}
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-800 transition text-sm font-medium text-red-400"
+              >
+                <span className="text-lg">🚪</span> Cerrar sesión
+              </button>
+            </div>
+
             {/* Datos del negocio */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-4">
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Negocio</h2>
@@ -353,51 +385,6 @@ export default function ConfigPage() {
               </div>
             )}
 
-            {/* Mi suscripción */}
-            {rolSistema === 'owner' && (
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-white text-sm font-semibold">Mi suscripción</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Plan activo, pagos y débito automático</p>
-                </div>
-                <a href="/miplan" className="text-blue-400 text-sm font-semibold">Gestionar →</a>
-              </div>
-            )}
-
-            {/* Soporte */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Soporte</h2>
-              <p className="text-gray-500 text-sm">¿Tenés alguna duda o problema?</p>
-              <button
-                onClick={() => { window.location.href = 'https://membresias.solucionesmdp.com.ar/ayuda' }}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-violet-700 hover:bg-violet-600 text-white font-semibold text-sm transition"
-              >
-                📖 Ver guía de ayuda
-              </button>
-              <a
-                href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-700 hover:bg-green-600 text-white font-semibold text-sm transition"
-              >
-                💬 Contactar soporte por WhatsApp
-              </a>
-            </div>
-
-            {/* Cuenta */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Cuenta</h2>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Rol</span>
-                <span className="text-white capitalize">{rolSistema ?? '—'}</span>
-              </div>
-              <button
-                onClick={cerrarSesion}
-                className="w-full py-3 rounded-xl bg-red-900/40 hover:bg-red-900/60 text-red-400 font-semibold text-sm transition border border-red-900"
-              >
-                🚪 Cerrar sesión
-              </button>
-            </div>
 
             {/* Modal agregar colaborador */}
             {modalColab && (
