@@ -12,7 +12,7 @@ const PLAN_MAP: Record<string, Plan> = {
   premium: 'premium',
 }
 
-const WA_LINK = 'https://wa.me/5492235767784'
+const WA_LINK = 'https://wa.me/5492236965481'
 
 const PLANES_META: Record<string, { label: string; color: string }> = {
   basico:      { label: 'Básico',      color: '#6b7280' },

@@ -3,7 +3,7 @@ import { useSession } from '@/lib/sessionStore'
 import { supabaseApp } from '@/lib/supabaseApp'
 import { useRouter } from 'next/navigation'
 
-const WHATSAPP_NUMERO = '5492235767784'
+const WHATSAPP_NUMERO = '5492236965481'
 const WHATSAPP_MENSAJE = encodeURIComponent('Hola, quiero suscribirme a SocioApp. Venía usando el demo.')
 
 const PLANES = [

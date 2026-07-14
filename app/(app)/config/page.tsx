@@ -182,7 +182,7 @@ export default function ConfigPage() {
                 <span className="text-lg">📖</span> Ver guía de ayuda
               </a>
               <a
-                href="https://wa.me/5492235767784?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
+                href="https://wa.me/5492236965481?text=Hola,%20necesito%20ayuda%20con%20App-Membresia"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-800 transition text-sm font-medium text-gray-300"
