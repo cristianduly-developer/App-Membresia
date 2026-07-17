@@ -105,10 +105,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 })
   }
 
-  const { org_id, rubro } = await req.json()
-  if (!org_id || !rubro) {
+  const { rubro } = await req.json()
+  if (!rubro) {
     return NextResponse.json({ ok: false, error: 'faltan_datos' }, { status: 400 })
   }
+
+  const localId = user.app_metadata?.local_id as string | undefined
+  if (!localId) {
+    return NextResponse.json({ ok: false, error: 'sin_org' }, { status: 403 })
+  }
+  const org_id = localId
 
   const actividadesTemplate = ACTIVIDADES_POR_RUBRO[rubro] ?? ACTIVIDADES_POR_RUBRO.otro
   const profesoresTemplate  = PROFESORES_POR_RUBRO[rubro]  ?? PROFESORES_POR_RUBRO.otro

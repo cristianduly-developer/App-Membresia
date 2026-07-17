@@ -2,6 +2,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+function esc(s: unknown) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
 const DEMO_DIAS = parseInt(process.env.DEMO_DIAS || '28', 10)
 const APP_ID    = 'app-membresias'
 const OWNER_ID  = process.env.DEMO_OWNER_ID ?? 'd8eef2e2-7e07-4ec9-9c6e-766addf89cc5'
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
           <p style="color:rgba(255,255,255,.85);margin:0;font-size:14px;">Soluciones MDP</p>
         </div>
         <div style="padding:32px 24px;">
-          <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">¡Hola, ${nombre}!</h2>
+          <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">¡Hola, ${esc(nombre)}!</h2>
           <p style="color:#374151;margin:0 0 24px;font-size:15px;line-height:1.6;">
             Tu prueba gratuita de <strong>${DEMO_DIAS} días</strong> ya está activa. Podés empezar a gestionar tu gimnasio o club ahora mismo.
           </p>
@@ -124,8 +126,8 @@ export async function POST(req: NextRequest) {
           to: process.env.ADMIN_NOTIFICATION_EMAIL || 'cristianduly@gmail.com',
           subject: `Nueva cuenta demo — App Membresías — ${orgData?.nombre ?? email}`,
           html: `<h2>Nueva cuenta demo en App Membresías</h2>
-            <p><b>Nombre:</b> ${orgData?.nombre ?? '—'}</p>
-            <p><b>Email:</b> ${orgData?.email_contacto ?? email}</p>
+            <p><b>Nombre:</b> ${esc(orgData?.nombre ?? '—')}</p>
+            <p><b>Email:</b> ${esc(orgData?.email_contacto ?? email)}</p>
             <p><b>Plan:</b> Profesional (demo ${DEMO_DIAS} días)</p>
             <p><b>Fecha:</b> ${fecha}</p>`,
         }),

@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import QRCode from 'qrcode'
 import { reportarError } from '@/lib/reportarError'
 
+function esc(s: unknown) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -50,13 +52,13 @@ export async function POST(req: NextRequest) {
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
       <div style="background:#7c3aed;padding:32px 24px;text-align:center;">
         ${logoUrl
-          ? `<img src="${logoUrl}" alt="${nombreNegocio}" style="width:64px;height:64px;border-radius:16px;object-fit:cover;margin-bottom:8px;" />`
+          ? `<img src="${esc(logoUrl)}" alt="${esc(nombreNegocio)}" style="width:64px;height:64px;border-radius:16px;object-fit:cover;margin-bottom:8px;" />`
           : `<div style="font-size:40px;">🏋️</div>`}
-        <h1 style="color:white;margin:8px 0 4px;font-size:22px;">${nombreNegocio}</h1>
+        <h1 style="color:white;margin:8px 0 4px;font-size:22px;">${esc(nombreNegocio)}</h1>
         <p style="color:rgba(255,255,255,.85);margin:0;font-size:14px;">Bienvenido/a</p>
       </div>
       <div style="padding:32px 24px;">
-        <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">¡Hola, ${socio.nombre}!</h2>
+        <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">¡Hola, ${esc(socio.nombre)}!</h2>
         <p style="color:#374151;margin:0 0 24px;font-size:15px;line-height:1.6;">
           Tu membresía fue registrada con éxito. Este es tu código QR personal para registrar tu asistencia en cada visita.
         </p>
